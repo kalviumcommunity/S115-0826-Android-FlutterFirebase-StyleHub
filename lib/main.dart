@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'providers/auth_provider.dart';
 import 'screens/splash_screen.dart';
+import 'core/theme/app_theme.dart';
 
 void main() async {
   // Ensure widget binding is initialized before calling Firebase.initializeApp()
@@ -31,10 +32,7 @@ class StyleHubApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'StyleHub',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.lightTheme,
       // App starts with a Splash/Loading screen while Auth state is checked
       home: const SplashScreen(),
     );

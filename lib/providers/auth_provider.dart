@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class AuthProvider extends ChangeNotifier {
   // TODO: Inject AuthRepository and handle Firebase Auth state
-  bool _isAuthenticated = false;
+  final bool _isAuthenticated = false;
 
   bool get isAuthenticated => _isAuthenticated;
 
