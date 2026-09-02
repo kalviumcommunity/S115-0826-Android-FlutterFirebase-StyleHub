@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper Functions for Role-Based Access
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+    
+    function isStaff(branchId) {
+      // Check if user is staff and matches the requested branchId
+      return isAuthenticated() && request.auth.token.role == 'staff' && request.auth.token.branchId == branchId;
+    }
+    
+    function isOwner(customerId) {
+      return isAuthenticated() && request.auth.uid == customerId;
+    }
+
+    // ---------------------------------------------------------
+    // Users Collection
+    // ---------------------------------------------------------
+    match /users/{uid} {
+      allow read: if isAuthenticated(); // Staff needs to search customers across network
+      allow write: if isOwner(uid) || isAdmin();
+    }
+
+    // ---------------------------------------------------------
+    // Appointments Collection
+    // ---------------------------------------------------------
+    match /appointments/{appointmentId} {
+      allow read: if isOwner(resource.data.customerId) || isStaff(resource.data.branchId) || isAdmin();
+      
+      // Allow creation if booking for oneself, or if staff for their branch
+      allow create: if isOwner(request.resource.data.customerId) || isStaff(request.resource.data.branchId) || isAdmin();
+      allow update, delete: if isOwner(resource.data.customerId) || isStaff(resource.data.branchId) || isAdmin();
+    }
+    
+    // ---------------------------------------------------------
+    // Appointment Slots (Double-Booking Prevention)
+    // ---------------------------------------------------------
+    match /appointmentSlots/{slotId} {
+      // Must be readable/writable by any authenticated user for transactions
+      allow read, write: if isAuthenticated(); 
+    }
+    
+    // ---------------------------------------------------------
+    // Service History Collection
+    // ---------------------------------------------------------
+    match /serviceHistory/{historyId} {
+      // Staff needs cross-branch read capability to see 'Returning Customer' history
+      allow read: if isOwner(resource.data.customerId) || isAuthenticated();
+      // Only staff at that branch or admins can record history
+      allow write: if isStaff(request.resource.data.branchId) || isAdmin();
+    }
+    
+    // ---------------------------------------------------------
+    // Branches, Stylists, Services Collections
+    // ---------------------------------------------------------
+    match /branches/{branchId} {
+      allow read: if true; // Publicly readable for booking
+      allow write: if isAdmin();
+    }
+    
+    match /stylists/{stylistId} {
+      allow read: if true;
+      allow write: if isAdmin() || isStaff(resource.data.branchId);
+    }
+    
+    match /services/{serviceId} {
+      allow read: if true;
+      allow write: if isAdmin() || isStaff(resource.data.branchId);
+    }
+  }
+}
