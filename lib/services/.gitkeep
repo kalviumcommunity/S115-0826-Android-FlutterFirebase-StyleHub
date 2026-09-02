@@ -1,0 +1,1 @@
+// This directory holds direct interactions with Firebase APIs (Firestore, Auth, Storage). Widgets should never access these directly.
