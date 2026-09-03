@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 
 import 'providers/auth_provider.dart';
 import 'screens/splash_screen.dart';
+import 'screens/auth/login_screen.dart';
+import 'screens/home/customer_home_screen.dart';
 import 'core/theme/app_theme.dart';
 
 void main() async {
@@ -33,8 +35,40 @@ class StyleHubApp extends StatelessWidget {
     return MaterialApp(
       title: 'StyleHub',
       theme: AppTheme.lightTheme,
-      // App starts with a Splash/Loading screen while Auth state is checked
-      home: const SplashScreen(),
+      home: const AuthWrapper(),
+    );
+  }
+}
+
+class AuthWrapper extends StatefulWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AuthProvider>().initialize();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AuthProvider>(
+      builder: (context, auth, _) {
+        if (!auth.isInitialized) {
+          return const SplashScreen();
+        }
+        if (auth.isAuthenticated) {
+          return const CustomerHomeScreen();
+        } else {
+          return const LoginScreen();
+        }
+      },
     );
   }
 }
