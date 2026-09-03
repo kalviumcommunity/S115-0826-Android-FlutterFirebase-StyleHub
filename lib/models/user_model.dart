@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// - [uid]: Maps directly to Firebase Auth UID (FR-02).
 /// - [role]: One of "customer", "staff", or "admin".
 /// - [branchId]: Assigned branch for staff; null for customers.
+/// - [phone]: Used for cross-branch customer lookup.
 class UserModel {
   final String uid;
   final String name;
@@ -30,33 +31,24 @@ class UserModel {
 
   /// Creates a [UserModel] from a Firestore document snapshot.
   factory UserModel.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data()!;
-    return UserModel(
-      uid: doc.id,
-      name: data['name'] as String? ?? '',
-      email: data['email'] as String? ?? '',
-      phone: data['phone'] as String? ?? '',
-      role: data['role'] as String? ?? 'customer',
-      branchId: data['branchId'] as String?,
-      profileImageUrl: data['profileImageUrl'] as String?,
-    );
+    return UserModel.fromMap(doc.data()!, doc.id);
   }
 
-  /// Creates a [UserModel] from a raw Map (useful for query results).
-  factory UserModel.fromMap(Map<String, dynamic> data, String documentId) {
+  /// Creates a [UserModel] from a raw Map and a document ID.
+  factory UserModel.fromMap(Map<String, dynamic> map, String documentId) {
     return UserModel(
       uid: documentId,
-      name: data['name'] as String? ?? '',
-      email: data['email'] as String? ?? '',
-      phone: data['phone'] as String? ?? '',
-      role: data['role'] as String? ?? 'customer',
-      branchId: data['branchId'] as String?,
-      profileImageUrl: data['profileImageUrl'] as String?,
+      name: map['name'] as String? ?? '',
+      email: map['email'] as String? ?? '',
+      phone: map['phone'] as String? ?? '',
+      role: map['role'] as String? ?? 'customer',
+      branchId: map['branchId'] as String?,
+      profileImageUrl: map['profileImageUrl'] as String?,
     );
   }
 
-  /// Converts this model to a Firestore-compatible map for writes.
-  Map<String, dynamic> toFirestore() {
+  /// Converts this model to a Map for clean Firestore serialization.
+  Map<String, dynamic> toMap() {
     return {
       'uid': uid,
       'name': name,
@@ -67,6 +59,9 @@ class UserModel {
       'profileImageUrl': profileImageUrl,
     };
   }
+
+  /// Alias for [toMap] for compatibility with Firestore write callers.
+  Map<String, dynamic> toFirestore() => toMap();
 
   /// Creates a copy of this model with the given fields replaced.
   UserModel copyWith({
