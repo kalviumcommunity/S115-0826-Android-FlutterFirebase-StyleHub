@@ -30,9 +30,9 @@ class _LoginScreenState extends State<LoginScreen> {
   void _onLoginPressed(BuildContext context) async {
     if (_formKey.currentState?.validate() ?? false) {
       final authProvider = context.read<AuthProvider>();
-      await authProvider.login(
-        _emailController.text.trim(),
-        _passwordController.text,
+      await authProvider.signIn(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
       );
       // Navigation is handled globally by the AuthWrapper in main.dart
       // when the auth state changes.
@@ -85,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   
                   Consumer<AuthProvider>(
                     builder: (context, auth, _) {
-                      return AppErrorWidget(message: auth.errorMessage);
+                      return AppErrorWidget(message: auth.errorMessage ?? '');
                     },
                   ),
                   

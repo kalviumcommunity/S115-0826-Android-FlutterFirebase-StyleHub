@@ -45,9 +45,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       final authProvider = context.read<AuthProvider>();
       final success = await authProvider.signUp(
-        _nameController.text.trim(),
-        _emailController.text.trim(),
-        _passwordController.text,
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        phone: '', // Phone not captured in this UI yet
       );
 
       if (success) {
@@ -99,7 +100,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   Consumer<AuthProvider>(
                     builder: (context, auth, _) {
                       final errorMessage = _localError ?? auth.errorMessage;
-                      return AppErrorWidget(message: errorMessage);
+                      return AppErrorWidget(message: errorMessage ?? '');
                     },
                   ),
                   

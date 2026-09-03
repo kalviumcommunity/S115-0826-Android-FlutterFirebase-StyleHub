@@ -8,7 +8,7 @@ class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key});
 
   void _onLogoutPressed(BuildContext context) {
-    context.read<AuthProvider>().logout();
+    context.read<AuthProvider>().signOut();
   }
 
   @override
