@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 
+import 'core/auth_wrapper.dart';
 import 'providers/auth_provider.dart';
+import 'providers/booking_provider.dart';
+import 'repositories/appointment_repository.dart';
 import 'repositories/auth_repository.dart';
-import 'screens/splash_screen.dart';
+import 'services/appointment_service.dart';
 import 'services/auth_service.dart';
 import 'services/firestore_service.dart';
 
@@ -36,10 +39,14 @@ void main() async {
   // ---------------------------------------------------------------------------
   final authService = AuthService();
   final firestoreService = FirestoreService();
+  final appointmentService = AppointmentService(firestore: null); // Defaults to instance
 
   final authRepository = AuthRepository(
     authService: authService,
     firestoreService: firestoreService,
+  );
+  final appointmentRepository = AppointmentRepository(
+    appointmentService: appointmentService,
   );
 
   runApp(
@@ -49,9 +56,10 @@ void main() async {
         ChangeNotifierProvider(
           create: (_) => AuthProvider(authRepository: authRepository),
         ),
-        // Additional providers (e.g., AppointmentProvider, BranchProvider) go here.
-        // Each should follow the same pattern:
-        //   ChangeNotifierProvider(create: (_) => XxxProvider(repository: xxxRepository)),
+        ChangeNotifierProvider(
+          create: (_) => BookingProvider(appointmentRepository: appointmentRepository),
+        ),
+        // Additional providers (e.g., BranchProvider) go here.
       ],
       child: const StyleHubApp(),
     ),
@@ -70,8 +78,8 @@ class StyleHubApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      // App starts with a Splash/Loading screen while Auth state is checked
-      home: const SplashScreen(),
+      // App starts with AuthWrapper to determine routing based on Role
+      home: const AuthWrapper(),
     );
   }
 }
