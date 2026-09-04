@@ -4,8 +4,13 @@ import '../theme/app_constants.dart';
 
 class AppErrorWidget extends StatelessWidget {
   final String message;
+  final VoidCallback? onRetry;
 
-  const AppErrorWidget({super.key, required this.message});
+  const AppErrorWidget({
+    super.key,
+    required this.message,
+    this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -19,18 +24,36 @@ class AppErrorWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.small),
         border: Border.all(color: AppColors.error.withValues(alpha: 0.5)),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.error_outline, color: AppColors.error, size: 20),
-          const SizedBox(width: AppSpacing.s),
-          Expanded(
-            child: Text(
-              message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.error,
-                  ),
-            ),
+          Row(
+            children: [
+              const Icon(Icons.error_outline, color: AppColors.error, size: 20),
+              const SizedBox(width: AppSpacing.s),
+              Expanded(
+                child: Text(
+                  message,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.error,
+                      ),
+                ),
+              ),
+            ],
           ),
+          if (onRetry != null) ...[
+            const SizedBox(height: AppSpacing.s),
+            TextButton(
+              onPressed: onRetry,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.error,
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(50, 30),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('Retry'),
+            ),
+          ],
         ],
       ),
     );
