@@ -2,11 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 
-
 import 'providers/auth_provider.dart';
-import 'screens/splash_screen.dart';
-import 'screens/auth/login_screen.dart';
-import 'screens/home/customer_home_screen.dart';
+import 'core/auth_wrapper.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/booking_provider.dart';
 import 'repositories/appointment_repository.dart';
@@ -81,26 +78,6 @@ class StyleHubApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       // App starts with AuthWrapper to determine routing based on Role
       home: const AuthWrapper(),
-    );
-  }
-}
-
-class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, auth, _) {
-        if (auth.isLoading) {
-          return const SplashScreen();
-        }
-        if (auth.isAuthenticated) {
-          return const CustomerHomeScreen();
-        } else {
-          return const LoginScreen();
-        }
-      },
     );
   }
 }
