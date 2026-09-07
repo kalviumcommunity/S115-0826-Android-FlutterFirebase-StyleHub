@@ -42,9 +42,10 @@ class NotFoundException extends AppException {
 
 /// Thrown when a booking slot is already taken (double-booking prevention).
 class SlotAlreadyBookedException extends AppException {
-  const SlotAlreadyBookedException(
-    [super.message = 'This time slot is already booked. Please select another time.'],
-  );
+  // ignore: use_super_parameters
+  const SlotAlreadyBookedException([
+    String message = 'This time slot is already booked. Please select another time.',
+  ]) : super(message);
 
   @override
   String toString() => 'SlotAlreadyBookedException: $message';

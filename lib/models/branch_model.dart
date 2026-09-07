@@ -8,7 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 ///
 /// Design decisions:
 /// - [id] is the Firestore document ID (auto-generated or custom).
-/// - [openingHours] is stored as a Map<String, String> keyed by day name
+/// - [openingHours] is stored as a `Map<String, String>` keyed by day name
 ///   (e.g., `{"Monday": "09:00-18:00", "Sunday": "Closed"}`).
 /// - Explicit [fromMap] and [toMap] methods guarantee clean Firestore
 ///   serialization and unit testability without mocking Firebase.

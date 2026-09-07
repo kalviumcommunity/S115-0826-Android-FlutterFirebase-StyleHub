@@ -6,50 +6,70 @@ import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_text_field.dart';
 import '../../core/widgets/app_error_widget.dart';
 import '../../providers/auth_provider.dart';
-import 'signup_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class SignUpScreen extends StatefulWidget {
+  const SignUpScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<SignUpScreen> createState() => _SignUpScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
+  String? _localError;
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  void _onLoginPressed(BuildContext context) async {
+  void _onSignUpPressed(BuildContext context) async {
+    setState(() => _localError = null);
+    
     if (_formKey.currentState?.validate() ?? false) {
+      if (_passwordController.text != _confirmPasswordController.text) {
+        setState(() {
+          _localError = 'Passwords do not match';
+        });
+        return;
+      }
+
       final authProvider = context.read<AuthProvider>();
-      await authProvider.signIn(
+      final success = await authProvider.signUp(
+        name: _nameController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
+        phone: '', // Phone not captured in this UI yet
       );
-      // Navigation is handled globally by the AuthWrapper in main.dart
-      // when the auth state changes.
+
+      if (success) {
+        if (!context.mounted) return;
+        // Pop back to let the AuthWrapper handle the transition to Home
+        Navigator.pop(context);
+      }
     }
   }
 
-  void _onSignUpPressed(BuildContext context) {
+  void _onLoginPressed(BuildContext context) {
     context.read<AuthProvider>().clearError();
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const SignUpScreen()),
-    );
+    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Create Account'),
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -60,14 +80,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(
-                    Icons.spa_rounded,
-                    size: 80,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(height: AppSpacing.l),
                   Text(
-                    'Welcome Back',
+                    'Join StyleHub',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.bold,
@@ -75,7 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: AppSpacing.s),
                   Text(
-                    'Login to continue to StyleHub',
+                    'Sign up to book your appointments',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: AppColors.textSecondary,
@@ -85,10 +99,23 @@ class _LoginScreenState extends State<LoginScreen> {
                   
                   Consumer<AuthProvider>(
                     builder: (context, auth, _) {
-                      return AppErrorWidget(message: auth.errorMessage ?? '');
+                      final errorMessage = _localError ?? auth.errorMessage;
+                      return AppErrorWidget(message: errorMessage ?? '');
                     },
                   ),
                   
+                  AppTextField(
+                    labelText: 'Full Name',
+                    hintText: 'Enter your name',
+                    controller: _nameController,
+                    prefixIcon: Icons.person_outline,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Name is required';
+                      }
+                      return null;
+                    },
+                  ),
                   AppTextField(
                     labelText: 'Email',
                     hintText: 'Enter your email',
@@ -107,13 +134,29 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   AppTextField(
                     labelText: 'Password',
-                    hintText: 'Enter your password',
+                    hintText: 'Create a password',
                     controller: _passwordController,
                     isPassword: true,
                     prefixIcon: Icons.lock_outline,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Password is required';
+                      }
+                      if (value.length < 6) {
+                        return 'Password must be at least 6 characters';
+                      }
+                      return null;
+                    },
+                  ),
+                  AppTextField(
+                    labelText: 'Confirm Password',
+                    hintText: 'Confirm your password',
+                    controller: _confirmPasswordController,
+                    isPassword: true,
+                    prefixIcon: Icons.lock_outline,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please confirm your password';
                       }
                       return null;
                     },
@@ -123,18 +166,18 @@ class _LoginScreenState extends State<LoginScreen> {
                   Consumer<AuthProvider>(
                     builder: (context, auth, _) {
                       return AppButton(
-                        text: 'Login',
+                        text: 'Sign Up',
                         isLoading: auth.isLoading,
-                        onPressed: () => _onLoginPressed(context),
+                        onPressed: () => _onSignUpPressed(context),
                       );
                     },
                   ),
                   const SizedBox(height: AppSpacing.m),
                   
                   AppButton(
-                    text: 'Don\'t have an account? Sign Up',
+                    text: 'Already have an account? Login',
                     type: AppButtonType.text,
-                    onPressed: () => _onSignUpPressed(context),
+                    onPressed: () => _onLoginPressed(context),
                   ),
                 ],
               ),

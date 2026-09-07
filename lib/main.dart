@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import 'core/auth_wrapper.dart';
 import 'core/mock_data_seeder.dart';
 import 'providers/auth_provider.dart';
+import 'core/auth_wrapper.dart';
+import 'core/theme/app_theme.dart';
 import 'providers/booking_provider.dart';
 import 'repositories/appointment_repository.dart';
 import 'repositories/auth_repository.dart';
@@ -89,10 +91,7 @@ class StyleHubApp extends StatelessWidget {
     return MaterialApp(
       title: 'StyleHub',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.lightTheme,
       // App starts with AuthWrapper to determine routing based on Role
       home: const AuthWrapper(),
     );
