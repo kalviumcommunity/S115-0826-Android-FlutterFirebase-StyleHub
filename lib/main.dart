@@ -6,11 +6,14 @@ import 'providers/auth_provider.dart';
 import 'core/auth_wrapper.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/booking_provider.dart';
+import 'providers/staff_dashboard_provider.dart';
 import 'repositories/appointment_repository.dart';
 import 'repositories/auth_repository.dart';
+import 'repositories/staff_repository.dart';
 import 'services/appointment_service.dart';
 import 'services/auth_service.dart';
 import 'services/firestore_service.dart';
+import 'services/operations_service.dart';
 
 void main() async {
   // Ensure widget binding is initialized before calling Firebase.initializeApp()
@@ -40,7 +43,9 @@ void main() async {
   // ---------------------------------------------------------------------------
   final authService = AuthService();
   final firestoreService = FirestoreService();
-  final appointmentService = AppointmentService(firestore: null); // Defaults to instance
+  final appointmentService = AppointmentService(
+    firestore: null,
+  ); // Defaults to instance
 
   final authRepository = AuthRepository(
     authService: authService,
@@ -48,6 +53,9 @@ void main() async {
   );
   final appointmentRepository = AppointmentRepository(
     appointmentService: appointmentService,
+  );
+  final staffRepository = StaffRepository(
+    operationsService: OperationsService(firestore: firestoreService),
   );
 
   runApp(
@@ -58,9 +66,13 @@ void main() async {
           create: (_) => AuthProvider(authRepository: authRepository),
         ),
         ChangeNotifierProvider(
-          create: (_) => BookingProvider(appointmentRepository: appointmentRepository),
+          create: (_) =>
+              BookingProvider(appointmentRepository: appointmentRepository),
         ),
-        // Additional providers (e.g., BranchProvider) go here.
+        ChangeNotifierProvider(
+          create: (_) => StaffDashboardProvider(repository: staffRepository),
+        ),
+        Provider<FirestoreService>.value(value: firestoreService),
       ],
       child: const StyleHubApp(),
     ),

@@ -30,8 +30,8 @@ class AuthRepository {
   AuthRepository({
     required AuthService authService,
     required FirestoreService firestoreService,
-  })  : _authService = authService,
-        _firestoreService = firestoreService;
+  }) : _authService = authService,
+       _firestoreService = firestoreService;
 
   // ---------------------------------------------------------------------------
   // Auth State
@@ -216,10 +216,7 @@ class AuthRepository {
         merge: true,
       );
     } catch (e) {
-      throw FirestoreException(
-        'Failed to update profile.',
-        code: e.toString(),
-      );
+      throw FirestoreException('Failed to update profile.', code: e.toString());
     }
   }
 
@@ -272,6 +269,21 @@ class AuthRepository {
         return const AuthException(
           'Invalid email or password. Please try again.',
           code: 'invalid-credential',
+        );
+      case 'operation-not-allowed':
+        return const AuthException(
+          'Email and password sign-in is disabled in Firebase. Enable it in Authentication > Sign-in method.',
+          code: 'operation-not-allowed',
+        );
+      case 'network-request-failed':
+        return const AuthException(
+          'Network connection failed. Check the emulator internet connection and try again.',
+          code: 'network-request-failed',
+        );
+      case 'app-not-authorized':
+        return const AuthException(
+          'This Android app is not authorized in the Firebase project.',
+          code: 'app-not-authorized',
         );
       default:
         return AuthException(
