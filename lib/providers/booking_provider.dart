@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/app_exceptions.dart';
 import '../repositories/appointment_repository.dart';
 
 /// Provider Layer: Manages in-progress booking state and UI representation.
@@ -46,11 +47,45 @@ class BookingProvider extends ChangeNotifier {
         serviceId: serviceId,
         scheduledAt: scheduledAt,
       );
-      
+
       _isSuccess = true;
+    } on SlotAlreadyBookedException catch (e) {
+      _errorMessage = e.message;
+    } on AppException catch (e) {
+      _errorMessage = e.message;
     } catch (e) {
-      // Handle error state gracefully to display in the UI layer
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = 'An unexpected error occurred. Please try again.';
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Cancel an appointment and free the associated time slot.
+  ///
+  /// Delegates to [AppointmentRepository.cancelAppointment] which runs
+  /// a Firestore transaction to atomically update the appointment status
+  /// and delete the slot lock document.
+  Future<void> cancelAppointment({
+    required String appointmentId,
+  }) async {
+    _setLoading(true);
+    _errorMessage = null;
+    _isSuccess = false;
+
+    try {
+      await _appointmentRepository.cancelAppointment(
+        appointmentId: appointmentId,
+      );
+
+      _isSuccess = true;
+    } on AppointmentNotFoundException catch (e) {
+      _errorMessage = e.message;
+    } on InvalidStatusTransitionException catch (e) {
+      _errorMessage = e.message;
+    } on AppException catch (e) {
+      _errorMessage = e.message;
+    } catch (e) {
+      _errorMessage = 'An unexpected error occurred. Please try again.';
     } finally {
       _setLoading(false);
     }

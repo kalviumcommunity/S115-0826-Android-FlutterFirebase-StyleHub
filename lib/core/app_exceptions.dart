@@ -50,3 +50,26 @@ class SlotAlreadyBookedException extends AppException {
   @override
   String toString() => 'SlotAlreadyBookedException: $message';
 }
+
+/// Thrown when an appointment referenced by ID does not exist in Firestore.
+class AppointmentNotFoundException extends AppException {
+  // ignore: use_super_parameters
+  const AppointmentNotFoundException([
+    String message = 'The requested appointment was not found.',
+  ]) : super(message);
+
+  @override
+  String toString() => 'AppointmentNotFoundException: $message';
+}
+
+/// Thrown when an appointment status transition is invalid
+/// (e.g., cancelling an already completed appointment).
+class InvalidStatusTransitionException extends AppException {
+  // ignore: use_super_parameters
+  const InvalidStatusTransitionException([
+    String message = 'This appointment cannot be modified in its current state.',
+  ]) : super(message);
+
+  @override
+  String toString() => 'InvalidStatusTransitionException: $message';
+}
