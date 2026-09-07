@@ -8,11 +8,14 @@ import 'providers/auth_provider.dart';
 import 'core/auth_wrapper.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/booking_provider.dart';
+import 'providers/staff_dashboard_provider.dart';
 import 'repositories/appointment_repository.dart';
 import 'repositories/auth_repository.dart';
+import 'repositories/staff_repository.dart';
 import 'services/appointment_service.dart';
 import 'services/auth_service.dart';
 import 'services/firestore_service.dart';
+import 'services/operations_service.dart';
 import 'services/storage_service.dart';
 
 void main() async {
@@ -53,6 +56,9 @@ void main() async {
   final appointmentRepository = AppointmentRepository(
     appointmentService: appointmentService,
   );
+  final staffRepository = StaffRepository(
+    operationsService: OperationsService(firestore: firestoreService),
+  );
 
   // ---------------------------------------------------------------------------
   // Mock Data Seeder (Development Only)
@@ -71,7 +77,11 @@ void main() async {
           create: (_) => AuthProvider(authRepository: authRepository),
         ),
         ChangeNotifierProvider(
-          create: (_) => BookingProvider(appointmentRepository: appointmentRepository),
+          create: (_) =>
+              BookingProvider(appointmentRepository: appointmentRepository),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => StaffDashboardProvider(repository: staffRepository),
         ),
         // StorageService is provided as a value for direct injection where needed.
         // Repositories that need storage can accept it via constructor.
