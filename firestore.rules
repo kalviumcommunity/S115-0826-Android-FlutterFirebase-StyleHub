@@ -24,6 +24,12 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.token.role == 'staff';
     }
     
+    function isStaffOrAdmin(branchId) {
+      // Combined check used across multiple collections for branch-scoped
+      // staff access or unrestricted admin access.
+      return isStaff(branchId) || isAdmin();
+    }
+    
     function isOwner(customerId) {
       return isAuthenticated() && request.auth.uid == customerId;
     }
@@ -44,13 +50,20 @@ service cloud.firestore {
     function hasRequiredFields(requiredFields) {
       return request.resource.data.keys().hasAll(requiredFields);
     }
+    
+    // Validates that a field in the incoming data is a Firestore timestamp.
+    function isValidTimestamp(field) {
+      return request.resource.data[field] is timestamp;
+    }
 
     // ---------------------------------------------------------
     // Users Collection
     // ---------------------------------------------------------
     match /users/{uid} {
-      // Staff needs to search customers across network.
-      allow read: if isAuthenticated();
+      // Customers can only read their own profile.
+      // Staff needs cross-branch customer search (FR-11: Returning Customer).
+      // Admins have full read access.
+      allow read: if isOwner(uid) || isAnyStaff() || isAdmin();
       
       // Users can create their own profile on sign-up.
       // Enforce that the document ID matches the auth UID and role is valid.
@@ -64,6 +77,7 @@ service cloud.firestore {
       
       // Users can update their own profile; admins can update anyone.
       // Role field is immutable for self-updates (prevents privilege escalation).
+      // profileImageUrl is explicitly allowed to change for photo upload flow.
       allow update: if (isOwner(uid) && request.resource.data.role == resource.data.role)
                     || isAdmin();
       
@@ -78,17 +92,23 @@ service cloud.firestore {
       allow read: if isOwner(resource.data.customerId) || isStaff(resource.data.branchId) || isAdmin();
       
       // Allow creation if booking for oneself, or if staff for their branch.
-      // Enforce required fields and valid initial status.
-      allow create: if (isOwner(request.resource.data.customerId) || isStaff(request.resource.data.branchId) || isAdmin())
+      // Enforce required fields, valid initial status, and timestamp type.
+      // New bookings MUST start with status 'pending' — no other initial
+      // status is valid (prevents creating pre-confirmed/completed records).
+      allow create: if (isOwner(request.resource.data.customerId) || isStaffOrAdmin(request.resource.data.branchId))
                     && hasRequiredFields(['customerId', 'branchId', 'stylistId', 'serviceId', 'status', 'scheduledAt'])
-                    && isValidAppointmentStatus(request.resource.data.status);
+                    && request.resource.data.status == 'pending'
+                    && isValidTimestamp('scheduledAt');
       
-      // Updates: owner can only cancel; staff/admin can change to any valid status.
+      // Updates: owner can only cancel (and only from a non-terminal state);
+      // staff/admin can change to any valid status.
       allow update: if (isOwner(resource.data.customerId) 
                         && request.resource.data.status == 'cancelled'
-                        && isValidAppointmentStatus(request.resource.data.status))
-                    || isStaff(resource.data.branchId)
-                    || isAdmin();
+                        && isValidAppointmentStatus(request.resource.data.status)
+                        // Prevent cancelling an already terminal appointment.
+                        && !(resource.data.status in ['completed', 'cancelled', 'no_show']))
+                    || (isStaffOrAdmin(resource.data.branchId)
+                        && isValidAppointmentStatus(request.resource.data.status));
       
       allow delete: if isAdmin();
     }
@@ -101,12 +121,14 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       
       // Only allow creation (not update) to prevent slot tampering.
-      // The slot must reference a valid appointmentId.
+      // The slot must reference a valid appointmentId and include branchId
+      // for branch-scoped deletion enforcement.
       allow create: if isAuthenticated()
-                    && hasRequiredFields(['slotId', 'appointmentId', 'stylistId', 'scheduledAt']);
+                    && hasRequiredFields(['slotId', 'appointmentId', 'stylistId', 'branchId', 'scheduledAt']);
       
-      // Only staff at the branch or admin can delete a slot (e.g., on cancellation).
-      allow delete: if isAnyStaff() || isAdmin();
+      // Only staff at the slot's branch or admin can delete a slot
+      // (e.g., on cancellation). Staff at other branches cannot delete.
+      allow delete: if isStaffOrAdmin(resource.data.branchId);
       
       // Updates are never allowed — slots are immutable once created.
       allow update: if false;
@@ -116,9 +138,12 @@ service cloud.firestore {
     // Service History Collection
     // ---------------------------------------------------------
     match /serviceHistory/{historyId} {
-      // Staff needs cross-branch read capability to see 'Returning Customer' history.
       // Customers can read their own history.
-      allow read: if isOwner(resource.data.customerId) || isAuthenticated();
+      // Staff needs cross-branch read capability to see 'Returning Customer' history (FR-11).
+      // Admins have full read access.
+      // SECURITY FIX: Previous rule used isAuthenticated() which allowed any
+      // logged-in user (including other customers) to read all service history.
+      allow read: if isOwner(resource.data.customerId) || isAnyStaff() || isAdmin();
       
       // Only staff at that branch or admins can record history.
       // Enforce required fields and that completedAt is present.
@@ -166,6 +191,25 @@ service cloud.firestore {
       allow create: if isAdmin()
                     || (isAnyStaff() && isStaff(request.resource.data.branchId));
       allow update: if isAdmin() || isStaff(resource.data.branchId);
+      allow delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------
+    // Audit Log Collection (Append-Only)
+    // ---------------------------------------------------------
+    match /auditLog/{logId} {
+      // Only admins can read audit logs.
+      allow read: if isAdmin();
+      
+      // Any authenticated user can create an audit log entry
+      // (e.g., recording a cancellation or status change).
+      // Enforce required fields including the actor and timestamp.
+      allow create: if isAuthenticated()
+                    && hasRequiredFields(['action', 'actorUid', 'targetCollection', 'targetDocId', 'timestamp'])
+                    && request.resource.data.actorUid == request.auth.uid;
+      
+      // Audit logs are immutable — no updates or deletes (except admin).
+      allow update: if false;
       allow delete: if isAdmin();
     }
     
