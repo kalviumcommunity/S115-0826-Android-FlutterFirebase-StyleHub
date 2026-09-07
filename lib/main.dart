@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 
+import 'core/auth_wrapper.dart';
+import 'core/mock_data_seeder.dart';
 import 'providers/auth_provider.dart';
 import 'core/auth_wrapper.dart';
 import 'core/theme/app_theme.dart';
@@ -11,6 +13,7 @@ import 'repositories/auth_repository.dart';
 import 'services/appointment_service.dart';
 import 'services/auth_service.dart';
 import 'services/firestore_service.dart';
+import 'services/storage_service.dart';
 
 void main() async {
   // Ensure widget binding is initialized before calling Firebase.initializeApp()
@@ -31,7 +34,7 @@ void main() async {
   // ---------------------------------------------------------------------------
   // Dependency Injection: Build the layer stack bottom-up.
   //
-  // Service Layer  → talks to Firebase
+  // Service Layer  → talks to Firebase (Auth, Firestore, Storage)
   // Repository Layer → orchestrates Services, maps errors, enforces business rules
   // Provider Layer → exposes state to UI via ChangeNotifier
   //
@@ -40,6 +43,7 @@ void main() async {
   // ---------------------------------------------------------------------------
   final authService = AuthService();
   final firestoreService = FirestoreService();
+  final storageService = StorageService();
   final appointmentService = AppointmentService(firestore: null); // Defaults to instance
 
   final authRepository = AuthRepository(
@@ -49,6 +53,15 @@ void main() async {
   final appointmentRepository = AppointmentRepository(
     appointmentService: appointmentService,
   );
+
+  // ---------------------------------------------------------------------------
+  // Mock Data Seeder (Development Only)
+  //
+  // Uncomment the following line to populate Firestore with initial branch
+  // and stylist data. Safe to run multiple times — uses deterministic IDs.
+  // Comment out again after first run to avoid unnecessary writes.
+  // ---------------------------------------------------------------------------
+  // await MockDataSeeder(firestoreService: firestoreService).seed();
 
   runApp(
     // Register top-level providers here to separate state management from UI logic
@@ -60,6 +73,9 @@ void main() async {
         ChangeNotifierProvider(
           create: (_) => BookingProvider(appointmentRepository: appointmentRepository),
         ),
+        // StorageService is provided as a value for direct injection where needed.
+        // Repositories that need storage can accept it via constructor.
+        Provider<StorageService>.value(value: storageService),
         // Additional providers (e.g., BranchProvider) go here.
       ],
       child: const StyleHubApp(),

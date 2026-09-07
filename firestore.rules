@@ -49,8 +49,10 @@ service cloud.firestore {
     // Users Collection
     // ---------------------------------------------------------
     match /users/{uid} {
-      // Staff needs to search customers across network.
-      allow read: if isAuthenticated();
+      // Customers can only read their own profile.
+      // Staff needs cross-branch customer search (FR-11: Returning Customer).
+      // Admins have full read access.
+      allow read: if isOwner(uid) || isAnyStaff() || isAdmin();
       
       // Users can create their own profile on sign-up.
       // Enforce that the document ID matches the auth UID and role is valid.
@@ -64,6 +66,7 @@ service cloud.firestore {
       
       // Users can update their own profile; admins can update anyone.
       // Role field is immutable for self-updates (prevents privilege escalation).
+      // profileImageUrl is explicitly allowed to change for photo upload flow.
       allow update: if (isOwner(uid) && request.resource.data.role == resource.data.role)
                     || isAdmin();
       
