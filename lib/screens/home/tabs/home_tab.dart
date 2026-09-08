@@ -7,6 +7,8 @@ import '../../../core/widgets/app_error_widget.dart';
 import '../../../core/widgets/branch_card.dart';
 import '../../../models/branch_model.dart';
 import '../../../services/firestore_service.dart';
+import '../../../providers/auth_provider.dart';
+import '../../booking/branch_selection_screen.dart';
 
 class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
@@ -35,6 +37,12 @@ class _HomeTabState extends State<HomeTab> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Branches'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () => context.read<AuthProvider>().signOut(),
+          )
+        ],
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _branchesStream,
@@ -95,6 +103,19 @@ class _HomeTabState extends State<HomeTab> {
           );
         },
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const BranchSelectionScreen(),
+            ),
+          );
+        },
+        label: const Text('Book Appointment'),
+        icon: const Icon(Icons.add),
+      ),
     );
   }
 }
+

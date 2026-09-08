@@ -60,6 +60,9 @@ void main() async {
         ChangeNotifierProvider(
           create: (_) => BookingProvider(appointmentRepository: appointmentRepository),
         ),
+        Provider<FirestoreService>.value(
+          value: firestoreService,
+        ),
         // Additional providers (e.g., BranchProvider) go here.
       ],
       child: const StyleHubApp(),
