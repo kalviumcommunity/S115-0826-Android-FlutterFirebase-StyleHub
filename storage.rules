@@ -1,0 +1,83 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // =========================================================================
+    // Helper Functions
+    // =========================================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+
+    function isAnyStaff() {
+      return isAuthenticated() && request.auth.token.role == 'staff';
+    }
+
+    // =========================================================================
+    // Customer Profile Photos
+    // =========================================================================
+    // Path: profile_photos/{uid}/profile.jpg
+    //
+    // - Only the owning customer can upload/replace/delete their own photo.
+    // - Anyone authenticated can read (staff needs to see customer photos).
+    // - Max file size: 5 MB. Only image content types allowed.
+    match /profile_photos/{uid}/{fileName} {
+      allow read: if isAuthenticated();
+
+      allow write: if isAuthenticated()
+                   && request.auth.uid == uid
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+
+      allow delete: if isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // =========================================================================
+    // Stylist Images
+    // =========================================================================
+    // Path: stylist_images/{stylistId}/photo.jpg
+    //
+    // - Staff and admin can upload stylist photos.
+    // - Anyone can read (publicly visible in booking flow).
+    // - Max file size: 5 MB. Only image content types allowed.
+    match /stylist_images/{stylistId}/{fileName} {
+      allow read: if true;
+
+      allow write: if (isAnyStaff() || isAdmin())
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+
+      allow delete: if isAnyStaff() || isAdmin();
+    }
+
+    // =========================================================================
+    // Branch Images
+    // =========================================================================
+    // Path: branch_images/{branchId}/cover.jpg
+    //
+    // - Only admin can upload/replace/delete branch images.
+    // - Anyone can read (publicly visible in branch listing).
+    // - Max file size: 10 MB for higher-quality branch photos.
+    match /branch_images/{branchId}/{fileName} {
+      allow read: if true;
+
+      allow write: if isAdmin()
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // Global Deny-All Fallback
+    // =========================================================================
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

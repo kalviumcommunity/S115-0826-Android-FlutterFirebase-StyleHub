@@ -45,3 +45,23 @@ class AppointmentStatuses {
     noShow,
   ];
 }
+
+/// Firebase Cloud Storage path constants.
+///
+/// Organizes uploads into predictable, role-scoped directories
+/// so security rules and cleanup operations can target paths precisely.
+class StoragePaths {
+  StoragePaths._();
+
+  /// Customer profile photos: `profile_photos/{uid}/profile.jpg`
+  static String customerProfilePhoto(String uid) =>
+      'profile_photos/$uid/profile.jpg';
+
+  /// Stylist images: `stylist_images/{stylistId}/photo.jpg`
+  static String stylistPhoto(String stylistId) =>
+      'stylist_images/$stylistId/photo.jpg';
+
+  /// Branch images: `branch_images/{branchId}/cover.jpg`
+  static String branchImage(String branchId) =>
+      'branch_images/$branchId/cover.jpg';
+}
