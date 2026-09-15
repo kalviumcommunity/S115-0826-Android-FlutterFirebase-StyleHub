@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/branch_model.dart';
-import '../../models/service_model.dart';
+import '../../models/stylist_model.dart';
 import '../../core/constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_constants.dart';
@@ -12,23 +12,23 @@ import '../../core/widgets/app_loading.dart';
 import '../../core/widgets/app_error_widget.dart';
 import '../../services/firestore_service.dart';
 import '../../providers/booking_provider.dart';
-import 'stylist_selection_screen.dart';
+import 'date_time_selection_screen.dart';
 
-class ServiceSelectionScreen extends StatefulWidget {
+class StylistSelectionScreen extends StatefulWidget {
   final BranchModel branch;
 
-  const ServiceSelectionScreen({
+  const StylistSelectionScreen({
     super.key,
     required this.branch,
   });
 
   @override
-  State<ServiceSelectionScreen> createState() => _ServiceSelectionScreenState();
+  State<StylistSelectionScreen> createState() => _StylistSelectionScreenState();
 }
 
-class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
-  late Stream<QuerySnapshot<Map<String, dynamic>>> _servicesStream;
-  ServiceModel? _selectedService;
+class _StylistSelectionScreenState extends State<StylistSelectionScreen> {
+  late Stream<QuerySnapshot<Map<String, dynamic>>> _stylistsStream;
+  StylistModel? _selectedStylist;
 
   @override
   void initState() {
@@ -37,23 +37,21 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
   }
 
   void _initStream() {
-    _servicesStream = context.read<FirestoreService>().streamCollection(
-      collection: FirestoreCollections.services,
+    _stylistsStream = context.read<FirestoreService>().streamCollection(
+      collection: FirestoreCollections.stylists,
+      queryBuilder: (query) => query.where('branchId', isEqualTo: widget.branch.id),
     );
   }
 
   void _onContinue() {
-    if (_selectedService != null) {
+    if (_selectedStylist != null) {
       final bookingProvider = context.read<BookingProvider>();
-      bookingProvider.setBranch(widget.branch);
-      bookingProvider.setService(_selectedService!);
+      bookingProvider.setStylist(_selectedStylist!);
       
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => StylistSelectionScreen(
-            branch: widget.branch,
-          ),
+          builder: (context) => const DateTimeSelectionScreen(),
         ),
       );
     }
@@ -63,52 +61,19 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select Service'),
+        title: const Text('Select Stylist'),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Selected Branch Info
-          Container(
-            color: AppColors.surface,
-            padding: const EdgeInsets.all(AppSpacing.m),
-            child: Row(
-              children: [
-                const Icon(Icons.store, color: AppColors.textSecondary),
-                const SizedBox(width: AppSpacing.s),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Booking at',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                      ),
-                      Text(
-                        '${widget.branch.name} - ${widget.branch.city}',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          // Services List
           Expanded(
-            child: _buildServiceList(),
+            child: _buildStylistList(),
           ),
-          // Continue Button
           Padding(
             padding: const EdgeInsets.all(AppSpacing.l),
             child: AppButton(
               text: 'Continue',
-              onPressed: _selectedService != null ? _onContinue : null,
+              onPressed: _selectedStylist != null ? _onContinue : null,
               isLoading: false,
             ),
           ),
@@ -117,16 +82,16 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
     );
   }
 
-  Widget _buildServiceList() {
+  Widget _buildStylistList() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _servicesStream,
+      stream: _stylistsStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: AppErrorWidget(
-                message: 'Failed to load services. Please try again.',
+                message: 'Failed to load stylists. Please try again.',
                 onRetry: () => setState(_initStream),
               ),
             ),
@@ -143,10 +108,10 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.content_cut, size: 64, color: Colors.grey[400]),
+                Icon(Icons.person_off, size: 64, color: Colors.grey[400]),
                 const SizedBox(height: 16),
                 Text(
-                  'No services available',
+                  'No stylists available here',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         color: Colors.grey[600],
                       ),
@@ -156,54 +121,58 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
           );
         }
 
-        final services = docs.map((doc) => ServiceModel.fromFirestore(doc)).toList();
+        final stylists = docs.map((doc) => StylistModel.fromFirestore(doc)).toList();
 
         return ListView.builder(
           padding: const EdgeInsets.all(AppSpacing.m),
-          itemCount: services.length,
+          itemCount: stylists.length,
           itemBuilder: (context, index) {
-            final service = services[index];
-            final isSelected = _selectedService?.id == service.id;
+            final stylist = stylists[index];
+            final isSelected = _selectedStylist?.id == stylist.id;
 
             return Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.s),
               child: AppCard(
                 onTap: () {
                   setState(() {
-                    _selectedService = service;
+                    _selectedStylist = stylist;
                   });
                 },
                 padding: const EdgeInsets.all(AppSpacing.m),
                 child: Row(
                   children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundImage: stylist.photoUrl != null 
+                          ? NetworkImage(stylist.photoUrl!) 
+                          : null,
+                      child: stylist.photoUrl == null 
+                          ? const Icon(Icons.person)
+                          : null,
+                    ),
+                    const SizedBox(width: AppSpacing.m),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            service.name,
+                            stylist.name,
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
                           ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            '${service.category} • ${service.durationMinutes} min',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
-                          ),
+                          if (stylist.specialization.isNotEmpty) ...[
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              stylist.specialization.join(', '),
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
-                    Text(
-                      '\$${service.price.toStringAsFixed(0)}',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(width: AppSpacing.m),
                     Icon(
                       isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
                       color: isSelected 

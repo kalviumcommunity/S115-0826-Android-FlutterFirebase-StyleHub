@@ -77,6 +77,32 @@ class AppointmentRepository {
     }
   }
 
+  /// Reschedules an appointment and atomically frees the associated slot.
+  ///
+  /// Delegates to [AppointmentService.rescheduleAppointment].
+  Future<void> rescheduleAppointment({
+    required String appointmentId,
+    required DateTime newScheduledAt,
+  }) async {
+    try {
+      await _appointmentService.rescheduleAppointment(
+        appointmentId: appointmentId,
+        newScheduledAt: newScheduledAt,
+      );
+    } on AppointmentNotFoundException {
+      rethrow;
+    } on InvalidStatusTransitionException {
+      rethrow;
+    } on SlotAlreadyBookedException {
+      rethrow;
+    } catch (e) {
+      throw FirestoreException(
+        'Failed to reschedule appointment: ${e.toString()}',
+        code: 'reschedule-failed',
+      );
+    }
+  }
+
   /// Completes an appointment using atomic batch writes.
   ///
   /// Throws [FirestoreException] for unexpected Firestore failures.
