@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 
-import 'core/auth_wrapper.dart';
-import 'core/mock_data_seeder.dart';
 import 'providers/auth_provider.dart';
 import 'core/auth_wrapper.dart';
 import 'core/theme/app_theme.dart';
@@ -72,6 +70,9 @@ void main() async {
         ),
         ChangeNotifierProvider(
           create: (_) => BookingProvider(appointmentRepository: appointmentRepository),
+        ),
+        Provider<FirestoreService>.value(
+          value: firestoreService,
         ),
         // StorageService is provided as a value for direct injection where needed.
         // Repositories that need storage can accept it via constructor.
