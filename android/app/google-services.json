@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "550572076995",
+    "project_id": "stylehub-8875e",
+    "storage_bucket": "stylehub-8875e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:550572076995:android:8334344f783ae0a9019776",
+        "android_client_info": {
+          "package_name": "com.stylehub"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAYpFJVDZ7ockF5af-oH-HTOTEOFpijnXU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

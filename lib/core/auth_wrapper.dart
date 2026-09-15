@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../screens/splash_screen.dart';
 import '../screens/auth/login_screen.dart';
-import '../screens/customer/customer_home_screen.dart';
+import '../screens/home/customer_home_screen.dart';
 import '../screens/staff/staff_dashboard_screen.dart';
 import '../screens/admin/admin_dashboard_screen.dart';
 
