@@ -6,14 +6,15 @@ import '../home/tabs/history_tab.dart';
 import '../home/tabs/profile_tab.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
-  const CustomerHomeScreen({super.key});
+  final int initialIndex;
+  const CustomerHomeScreen({super.key, this.initialIndex = 0});
 
   @override
   State<CustomerHomeScreen> createState() => _CustomerHomeScreenState();
 }
 
 class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
-  int _currentIndex = 0;
+  late int _currentIndex;
 
   final List<Widget> _tabs = [
     const HomeTab(),
@@ -21,6 +22,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     const HistoryTab(),
     const ProfileTab(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+  }
 
   @override
   Widget build(BuildContext context) {
