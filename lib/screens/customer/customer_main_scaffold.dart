@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:stylehub/core/theme/app_colors.dart';
 import 'package:stylehub/core/theme/app_typography.dart';
-import 'package:stylehub/core/theme/app_constants.dart';
 import 'package:stylehub/screens/customer/branch_list_screen.dart';
 import 'package:stylehub/screens/customer/my_appointments_screen.dart';
 import 'package:stylehub/screens/customer/service_history_screen.dart';

@@ -4,7 +4,6 @@ import 'package:stylehub/providers/auth_provider.dart';
 import 'package:stylehub/widgets/primary_button.dart';
 import 'package:stylehub/widgets/custom_text_field.dart';
 import 'package:stylehub/core/theme/app_colors.dart';
-import 'package:stylehub/core/theme/app_typography.dart';
 import 'package:stylehub/core/theme/app_constants.dart';
 
 class ProfileScreen extends StatefulWidget {

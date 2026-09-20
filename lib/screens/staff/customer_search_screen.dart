@@ -3,9 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:stylehub/providers/staff_dashboard_provider.dart';
 import 'package:stylehub/widgets/data_state_view.dart';
 import 'package:stylehub/widgets/custom_text_field.dart';
-import 'package:stylehub/widgets/primary_button.dart';
-import 'package:stylehub/core/theme/app_colors.dart';
-import 'package:stylehub/core/theme/app_typography.dart';
 import 'package:stylehub/core/theme/app_constants.dart';
 
 class CustomerSearchScreen extends StatefulWidget {
@@ -53,7 +50,7 @@ class _CustomerSearchScreenState extends State<CustomerSearchScreen> {
                 successBuilder: (customers) {
                   return ListView.separated(
                     itemCount: customers.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.s),
+                    separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.s),
                     itemBuilder: (context, index) {
                       final user = customers[index];
                       return ListTile(

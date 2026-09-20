@@ -3,9 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:stylehub/providers/reference_data_provider.dart';
 import 'package:stylehub/widgets/data_state_view.dart';
 import 'package:stylehub/widgets/domain_cards.dart';
-import 'package:stylehub/screens/customer/branch_details_screen.dart';
-import 'package:stylehub/core/theme/app_colors.dart';
-import 'package:stylehub/core/theme/app_typography.dart';
 import 'package:stylehub/core/theme/app_constants.dart';
 
 class BranchListScreen extends StatefulWidget {
@@ -50,7 +47,7 @@ class _BranchListScreenState extends State<BranchListScreen> {
           return ListView.separated(
             padding: const EdgeInsets.all(AppSpacing.m),
             itemCount: branches.length,
-            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.s),
+            separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.s),
             itemBuilder: (context, index) {
               final branch = branches[index];
               return BranchCard(

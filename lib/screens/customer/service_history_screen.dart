@@ -82,7 +82,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
           return ListView.separated(
             padding: const EdgeInsets.all(AppSpacing.m),
             itemCount: pastAppointments.length,
-            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.s),
+            separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.s),
             itemBuilder: (context, index) {
               final appt = pastAppointments[index];
               return AppointmentCard(

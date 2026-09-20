@@ -82,7 +82,7 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
           return ListView.separated(
             padding: const EdgeInsets.all(AppSpacing.m),
             itemCount: upcomingAppointments.length,
-            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.s),
+            separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.s),
             itemBuilder: (context, index) {
               final appt = upcomingAppointments[index];
               return AppointmentCard(

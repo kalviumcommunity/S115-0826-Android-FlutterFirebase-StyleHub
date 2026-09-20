@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:stylehub/providers/reference_data_provider.dart';
-import 'package:stylehub/widgets/data_state_view.dart';
 import 'package:stylehub/widgets/domain_cards.dart';
 import 'package:stylehub/widgets/primary_button.dart';
 import 'package:stylehub/models/branch_model.dart';
@@ -86,7 +85,7 @@ class BranchDetailsScreen extends StatelessWidget {
                     subtitle: Text('${service.durationMinutes} mins'),
                     trailing: Text('\$${service.price}', style: AppTypography.titleSmall),
                     onTap: () {},
-                  )).toList(),
+                  )),
 
                   const SizedBox(height: AppSpacing.xl),
                   PrimaryButton(

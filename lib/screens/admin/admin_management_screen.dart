@@ -5,7 +5,6 @@ import 'package:stylehub/widgets/data_state_view.dart';
 import 'package:stylehub/widgets/domain_cards.dart';
 import 'package:stylehub/widgets/primary_button.dart';
 import 'package:stylehub/widgets/custom_text_field.dart';
-import 'package:stylehub/core/theme/app_colors.dart';
 import 'package:stylehub/core/theme/app_typography.dart';
 import 'package:stylehub/core/theme/app_constants.dart';
 
@@ -113,7 +112,7 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
               return ListView.separated(
                 padding: const EdgeInsets.all(AppSpacing.m),
                 itemCount: list.length,
-                separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.s),
+                separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.s),
                 itemBuilder: (context, index) => itemBuilder(list[index]),
               );
             },

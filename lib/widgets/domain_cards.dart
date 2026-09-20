@@ -147,14 +147,14 @@ class AppointmentCard extends StatelessWidget {
                   const Icon(Icons.calendar_today, size: 14, color: AppColors.secondary),
                   const SizedBox(width: AppSpacing.xs),
                   Text(
-                    "${appointment.scheduledAt.toLocal().toString().split(' ')[0]}",
+                    appointment.scheduledAt.toLocal().toString().split(' ')[0],
                     style: AppTypography.bodySmall,
                   ),
                   const SizedBox(width: AppSpacing.m),
                   const Icon(Icons.access_time, size: 14, color: AppColors.secondary),
                   const SizedBox(width: AppSpacing.xs),
                   Text(
-                    "${appointment.scheduledAt.toLocal().toString().split(' ')[1].substring(0, 5)}",
+                    appointment.scheduledAt.toLocal().toString().split(' ')[1].substring(0, 5),
                     style: AppTypography.bodySmall,
                   ),
                 ],
@@ -177,7 +177,7 @@ class AppointmentCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppRadius.small),
         border: Border.all(color: color),
       ),
