@@ -253,4 +253,31 @@ class AppointmentService {
     // Commit both operations atomically
     await batch.commit();
   }
+
+  /// Streams real-time appointment updates for a customer.
+  Stream<List<Map<String, dynamic>>> getCustomerAppointmentsStream(String customerId) {
+    return _firestore
+        .collection('appointments')
+        .where('customerId', isEqualTo: customerId)
+        .orderBy('scheduledAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
+  }
+
+  /// Fetches booked slots for a specific stylist on a specific date.
+  Future<List<DateTime>> getBookedSlots(String stylistId, DateTime date) async {
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    final snapshot = await _firestore
+        .collection('appointmentSlots')
+        .where('stylistId', isEqualTo: stylistId)
+        .where('scheduledAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+        .where('scheduledAt', isLessThan: Timestamp.fromDate(endOfDay))
+        .get();
+
+    return snapshot.docs
+        .map((doc) => (doc.data()['scheduledAt'] as Timestamp).toDate())
+        .toList();
+  }
 }

@@ -7,7 +7,6 @@ import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/booking_provider.dart';
-import '../customer/customer_home_screen.dart';
 
 class BookingConfirmationScreen extends StatelessWidget {
   final bool isRescheduling;
@@ -168,11 +167,8 @@ class BookingConfirmationScreen extends StatelessWidget {
       provider.clearBookingState();
       
       // Navigate to Customer Home Screen on Appointments tab
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const CustomerHomeScreen(initialIndex: 1),
-        ),
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/customer-main',
         (route) => false,
       );
     }

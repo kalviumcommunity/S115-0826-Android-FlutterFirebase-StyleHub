@@ -4,6 +4,7 @@ import '../repositories/appointment_repository.dart';
 import '../models/branch_model.dart';
 import '../models/service_model.dart';
 import '../models/stylist_model.dart';
+import '../models/appointment_model.dart';
 
 /// Provider Layer: Manages in-progress booking state and UI representation.
 /// Prevents the UI from interacting with Firebase APIs directly.
@@ -42,6 +43,14 @@ class BookingProvider extends ChangeNotifier {
   void setBranch(BranchModel branch) {
     _selectedBranch = branch;
     notifyListeners();
+  }
+
+  Stream<List<AppointmentModel>> getCustomerAppointmentsStream(String customerId) {
+    return _appointmentRepository.getCustomerAppointmentsStream(customerId);
+  }
+
+  Future<List<DateTime>> getBookedSlots(String stylistId, DateTime date) {
+    return _appointmentRepository.getBookedSlots(stylistId, date);
   }
 
   void setService(ServiceModel service) {

@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
-import '../screens/splash_screen.dart';
+import '../screens/auth/splash_screen.dart';
 import '../screens/auth/login_screen.dart';
-import '../screens/home/customer_home_screen.dart';
+import '../screens/customer/customer_main_scaffold.dart';
 import '../screens/staff/staff_dashboard_screen.dart';
-import '../screens/admin/admin_dashboard_screen.dart';
+import '../screens/admin/admin_management_screen.dart';
 
 /// Core Routing Logic
 /// This widget listens to [AuthProvider] and routes to the correct application
@@ -30,14 +30,14 @@ class AuthWrapper extends StatelessWidget {
 
     // Handle Success/Authenticated State - Route by Role
     final role = authProvider.userRole;
-    
+
     switch (role) {
       case 'customer':
-        return const CustomerHomeScreen();
+        return const CustomerMainScaffold();
       case 'staff':
         return const StaffDashboardScreen();
       case 'admin':
-        return const AdminDashboardScreen();
+        return const AdminManagementScreen();
       default:
         // Handle Error State for unrecognized roles
         return const Scaffold(
