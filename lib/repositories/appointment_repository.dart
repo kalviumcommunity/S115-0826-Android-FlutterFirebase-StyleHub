@@ -1,4 +1,5 @@
 import '../core/app_exceptions.dart';
+import '../models/appointment_model.dart';
 import '../services/appointment_service.dart';
 
 /// Repository Layer: Orchestrates appointment booking, cancellation, and
@@ -125,6 +126,25 @@ class AppointmentRepository {
       throw FirestoreException(
         'Failed to complete appointment: ${e.toString()}',
         code: 'completion-failed',
+      );
+    }
+  }
+
+  /// Streams real-time appointment updates for a customer.
+  Stream<List<AppointmentModel>> getCustomerAppointmentsStream(String customerId) {
+    return _appointmentService.getCustomerAppointmentsStream(customerId).map(
+      (list) => list.map((map) => AppointmentModel.fromMap(map, map['id'] as String)).toList(),
+    );
+  }
+
+  /// Fetches booked slots for a specific stylist on a specific date.
+  Future<List<DateTime>> getBookedSlots(String stylistId, DateTime date) async {
+    try {
+      return await _appointmentService.getBookedSlots(stylistId, date);
+    } catch (e) {
+      throw FirestoreException(
+        'Failed to fetch booked slots: ${e.toString()}',
+        code: 'fetch-slots-failed',
       );
     }
   }

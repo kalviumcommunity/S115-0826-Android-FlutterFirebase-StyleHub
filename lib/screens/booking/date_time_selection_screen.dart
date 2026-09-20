@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants.dart';
 import '../../core/theme/app_colors.dart';
@@ -60,13 +59,8 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
           _buildDateSelector(),
           const Divider(),
           Expanded(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance
-                  .collection(FirestoreCollections.appointmentSlots)
-                  .where('stylistId', isEqualTo: stylist.id)
-                  .where('scheduledAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-                  .where('scheduledAt', isLessThan: Timestamp.fromDate(endOfDay))
-                  .snapshots(),
+            child: FutureBuilder<List<DateTime>>(
+              future: bookingProvider.getBookedSlots(stylist.id, _selectedDate),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -78,8 +72,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
 
                 // Extract booked times
                 final bookedTimes = <String>{};
-                for (var doc in snapshot.data?.docs ?? []) {
-                  final scheduledAt = (doc['scheduledAt'] as Timestamp).toDate();
+                for (var scheduledAt in snapshot.data ?? <DateTime>[]) {
                   bookedTimes.add('${scheduledAt.hour}:${scheduledAt.minute}');
                 }
 

@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_loading.dart';
 import '../../core/widgets/app_error_widget.dart';
 import '../../core/widgets/branch_card.dart';
 import '../../models/branch_model.dart';
-import '../../services/firestore_service.dart';
+import '../../providers/reference_data_provider.dart';
 import 'service_selection_screen.dart';
 
 class BranchSelectionScreen extends StatefulWidget {
@@ -18,19 +17,14 @@ class BranchSelectionScreen extends StatefulWidget {
 }
 
 class _BranchSelectionScreenState extends State<BranchSelectionScreen> {
-  late Stream<QuerySnapshot<Map<String, dynamic>>> _branchesStream;
   BranchModel? _selectedBranch;
 
   @override
   void initState() {
     super.initState();
-    _initStream();
-  }
-
-  void _initStream() {
-    _branchesStream = context.read<FirestoreService>().streamCollection(
-      collection: FirestoreCollections.branches,
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ReferenceDataProvider>().initialize();
+    });
   }
 
   void _onContinue() {
@@ -48,6 +42,8 @@ class _BranchSelectionScreenState extends State<BranchSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<ReferenceDataProvider>();
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Select Branch'),
@@ -55,28 +51,27 @@ class _BranchSelectionScreenState extends State<BranchSelectionScreen> {
       body: Column(
         children: [
           Expanded(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _branchesStream,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
+            child: Builder(
+              builder: (context) {
+                if (provider.branchesError != null) {
                   return Center(
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: AppErrorWidget(
                         message: 'Failed to load branches. Please try again.',
-                        onRetry: () => setState(_initStream),
+                        onRetry: () => provider.initialize(),
                       ),
                     ),
                   );
                 }
 
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                if (provider.branchesLoading) {
                   return const Center(child: AppCircularProgressIndicator());
                 }
 
-                final docs = snapshot.data?.docs ?? [];
+                final branches = provider.branches;
 
-                if (docs.isEmpty) {
+                if (branches.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -93,8 +88,6 @@ class _BranchSelectionScreenState extends State<BranchSelectionScreen> {
                     ),
                   );
                 }
-
-                final branches = docs.map((doc) => BranchModel.fromFirestore(doc)).toList();
 
                 return ListView.builder(
                   padding: const EdgeInsets.all(16.0),
