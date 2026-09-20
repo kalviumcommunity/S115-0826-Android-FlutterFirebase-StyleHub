@@ -17,7 +17,9 @@ class CustomerInsight {
     required this.mostBookedService,
   });
 
-  bool get isReturning => history.isNotEmpty;
+  int get totalNetworkVisits => history.length;
+
+  bool get isReturning => totalNetworkVisits > 0;
 }
 
 class OperationsService {
@@ -37,13 +39,19 @@ class OperationsService {
     final result = await _firestore.queryCollection(
       collection: FirestoreCollections.serviceHistory,
       queryBuilder: (ref) => ref
-          .where('customerId', isEqualTo: customerId)
-          .orderBy('completedAt', descending: true),
+          .where('customerId', isEqualTo: customerId),
     );
+
+    final history = result.docs.toList()
+      ..sort((left, right) {
+        final leftDate = _timestampValue(left.data()['completedAt']);
+        final rightDate = _timestampValue(right.data()['completedAt']);
+        return rightDate.compareTo(leftDate);
+      });
 
     final stylistCounts = <String, int>{};
     final serviceCounts = <String, int>{};
-    for (final document in result.docs) {
+    for (final document in history) {
       final data = document.data();
       final stylistId = data['stylistId'] as String?;
       final serviceId = data['serviceId'] as String?;
@@ -58,7 +66,7 @@ class OperationsService {
     final stylistId = _mostFrequent(stylistCounts);
     final serviceId = _mostFrequent(serviceCounts);
     return CustomerInsight(
-      history: result.docs,
+      history: history,
       preferredStylist: await _lookupName(
         FirestoreCollections.stylists,
         stylistId,
@@ -68,6 +76,12 @@ class OperationsService {
         serviceId,
       ),
     );
+  }
+
+  DateTime _timestampValue(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    return DateTime.fromMillisecondsSinceEpoch(0);
   }
 
   Future<String?> _lookupName(String collection, String? id) async {

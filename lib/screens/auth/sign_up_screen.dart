@@ -7,41 +7,38 @@ import 'package:stylehub/core/theme/app_colors.dart';
 import 'package:stylehub/core/theme/app_typography.dart';
 import 'package:stylehub/core/theme/app_constants.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class SignUpScreen extends StatefulWidget {
+  const SignUpScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<SignUpScreen> createState() => _SignUpScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  void _handleLogin() async {
+  void _handleSignUp() async {
     if (_formKey.currentState!.validate()) {
       final authProvider = context.read<AuthProvider>();
-      await authProvider.login(
+      await authProvider.signUp(
+        _nameController.text.trim(),
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
 
       if (mounted && authProvider.isAuthenticated) {
-        // Role routing handled by SplashScreen or here directly
-        final role = authProvider.userRole;
-        if (role == 'admin' || role == 'staff') {
-          Navigator.of(context).pushReplacementNamed('/staff-dashboard');
-        } else {
-          Navigator.of(context).pushReplacementNamed('/customer-main');
-        }
+        Navigator.of(context).pushReplacementNamed('/customer-main');
       }
     }
   }
@@ -59,20 +56,28 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.lock_outline, size: 64, color: AppColors.primary),
+                  const Icon(Icons.person_add_alt_1, size: 64, color: AppColors.primary),
                   const SizedBox(height: AppSpacing.l),
                   Text(
-                    'Welcome Back',
+                    'Create Account',
                     textAlign: TextAlign.center,
                     style: AppTypography.headlineMedium,
                   ),
                   const SizedBox(height: AppSpacing.m),
                   Text(
-                    'Login to manage your style',
+                    'Join StyleHub today',
                     textAlign: TextAlign.center,
                     style: AppTypography.bodyMedium,
                   ),
                   const SizedBox(height: AppSpacing.xl),
+                  CustomTextField(
+                    label: 'Full Name',
+                    hint: 'John Doe',
+                    controller: _nameController,
+                    prefixIcon: const Icon(Icons.person_outline),
+                    validator: (value) => value == null || value.isEmpty ? 'Please enter your name' : null,
+                  ),
+                  const SizedBox(height: AppSpacing.m),
                   CustomTextField(
                     label: 'Email',
                     hint: 'email@example.com',
@@ -88,19 +93,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _passwordController,
                     isPassword: true,
                     prefixIcon: const Icon(Icons.lock_outlined),
-                    validator: (value) => value == null || value.isEmpty ? 'Please enter password' : null,
+                    validator: (value) => value == null || value.length < 6 ? 'Password must be 6+ chars' : null,
                   ),
                   const SizedBox(height: AppSpacing.xl),
                   PrimaryButton(
-                    text: 'Login',
+                    text: 'Sign Up',
                     isLoading: context.watch<AuthProvider>().isLoading,
-                    onPressed: _handleLogin,
+                    onPressed: _handleSignUp,
                   ),
                   const SizedBox(height: AppSpacing.m),
                   TextButton(
-                    onPressed: () => Navigator.of(context).pushNamed('/signup'),
+                    onPressed: () => Navigator.of(context).pop(),
                     child: Text(
-                      "Don't have an account? Sign Up",
+                      "Already have an account? Login",
                       style: AppTypography.labelMedium,
                     ),
                   ),

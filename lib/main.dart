@@ -1,51 +1,39 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-
-import 'providers/auth_provider.dart';
-import 'core/auth_wrapper.dart';
-import 'core/theme/app_theme.dart';
-import 'providers/booking_provider.dart';
-import 'providers/staff_dashboard_provider.dart';
-import 'repositories/appointment_repository.dart';
-import 'repositories/auth_repository.dart';
-import 'repositories/staff_repository.dart';
-import 'services/appointment_service.dart';
-import 'services/auth_service.dart';
-import 'services/firestore_service.dart';
-import 'services/operations_service.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:stylehub/core/app_router.dart';
+import 'package:stylehub/core/theme/app_theme.dart';
+import 'package:stylehub/core/auth_wrapper.dart';
+import 'package:stylehub/providers/auth_provider.dart';
+import 'package:stylehub/providers/booking_provider.dart';
+import 'package:stylehub/providers/staff_dashboard_provider.dart';
+import 'package:stylehub/repositories/appointment_repository.dart';
+import 'package:stylehub/repositories/auth_repository.dart';
+import 'package:stylehub/repositories/staff_repository.dart';
+import 'package:stylehub/services/appointment_service.dart';
+import 'package:stylehub/services/auth_service.dart';
+import 'package:stylehub/services/firestore_service.dart';
+import 'package:stylehub/services/operations_service.dart';
+import 'package:stylehub/services/storage_service.dart';
+import 'package:stylehub/repositories/branch_repository.dart';
+import 'package:stylehub/repositories/stylist_repository.dart';
+import 'package:stylehub/repositories/service_repository.dart';
+import 'package:stylehub/providers/reference_data_provider.dart';
+import 'firebase_options.dart';
 
 void main() async {
-  // Ensure widget binding is initialized before calling Firebase.initializeApp()
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase backend.
-  //
-  // NOTE: After running `flutterfire configure`, uncomment the import and
-  // options parameter below to use the generated configuration:
-  //
-  //   import 'firebase_options.dart';
-  //   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  //
-  // Until then, Firebase.initializeApp() without options works when
-  // google-services.json is present in android/app/.
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
-  // ---------------------------------------------------------------------------
-  // Dependency Injection: Build the layer stack bottom-up.
-  //
-  // Service Layer  → talks to Firebase
-  // Repository Layer → orchestrates Services, maps errors, enforces business rules
-  // Provider Layer → exposes state to UI via ChangeNotifier
-  //
-  // This wiring ensures the Layered Architecture (TRD §1) is enforced at
-  // the composition root.
-  // ---------------------------------------------------------------------------
   final authService = AuthService();
   final firestoreService = FirestoreService();
   final appointmentService = AppointmentService(
     firestore: null,
-  ); // Defaults to instance
+  );
+  final storageService = StorageService();
 
   final authRepository = AuthRepository(
     authService: authService,
@@ -53,26 +41,36 @@ void main() async {
   );
   final appointmentRepository = AppointmentRepository(
     appointmentService: appointmentService,
+    firestoreService: firestoreService,
   );
   final staffRepository = StaffRepository(
     operationsService: OperationsService(firestore: firestoreService),
   );
+  final branchRepository = BranchRepository(firestoreService: firestoreService);
+  final stylistRepository = StylistRepository(firestoreService: firestoreService);
+  final serviceRepository = ServiceRepository(firestoreService: firestoreService);
 
   runApp(
-    // Register top-level providers here to separate state management from UI logic
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
           create: (_) => AuthProvider(authRepository: authRepository),
         ),
         ChangeNotifierProvider(
-          create: (_) =>
-              BookingProvider(appointmentRepository: appointmentRepository),
+          create: (_) => BookingProvider(appointmentRepository: appointmentRepository),
         ),
         ChangeNotifierProvider(
           create: (_) => StaffDashboardProvider(repository: staffRepository),
         ),
+        ChangeNotifierProvider(
+          create: (_) => ReferenceDataProvider(
+            branchRepository: branchRepository,
+            stylistRepository: stylistRepository,
+            serviceRepository: serviceRepository,
+          ),
+        ),
         Provider<FirestoreService>.value(value: firestoreService),
+        Provider<StorageService>.value(value: storageService),
       ],
       child: const StyleHubApp(),
     ),
@@ -88,8 +86,8 @@ class StyleHubApp extends StatelessWidget {
       title: 'StyleHub',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      // App starts with AuthWrapper to determine routing based on Role
-      home: const AuthWrapper(),
+      onGenerateRoute: AppRouter.generateRoute,
+      initialRoute: '/',
     );
   }
 }

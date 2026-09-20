@@ -1,15 +1,53 @@
 import 'package:flutter/material.dart';
+import '../core/app_exceptions.dart';
 import '../repositories/appointment_repository.dart';
+import '../models/appointment_model.dart';
+import '../models/service_model.dart';
+import '../models/stylist_model.dart';
+import '../models/branch_model.dart';
 
 /// Provider Layer: Manages in-progress booking state and UI representation.
-/// Prevents the UI from interacting with Firebase APIs directly.
-/// Handles Loading, Empty, Error, and Success states.
 class BookingProvider extends ChangeNotifier {
   final AppointmentRepository _appointmentRepository;
 
-  BookingProvider({required AppointmentRepository appointmentRepository})
-      : _appointmentRepository = appointmentRepository;
+  BookingProvider({
+    required AppointmentRepository appointmentRepository,
+  }) : _appointmentRepository = appointmentRepository;
 
+  // ---------------------------------------------------------------------------
+  // Booking State (for the multi-step flow)
+  // ---------------------------------------------------------------------------
+  BranchModel? _selectedBranch;
+  BranchModel? get selectedBranch => _selectedBranch;
+  void setBranch(BranchModel branch) {
+    _selectedBranch = branch;
+    notifyListeners();
+  }
+
+  ServiceModel? _selectedService;
+  ServiceModel? get selectedService => _selectedService;
+  void setService(ServiceModel service) {
+    _selectedService = service;
+    notifyListeners();
+  }
+
+  StylistModel? _selectedStylist;
+  StylistModel? get selectedStylist => _selectedStylist;
+  void setStylist(StylistModel stylist) {
+    _selectedStylist = stylist;
+    notifyListeners();
+  }
+
+  DateTime? _selectedSlot;
+  DateTime? get selectedSlot => _selectedSlot;
+  void setSlot(DateTime slot) {
+    _selectedSlot = slot;
+    notifyListeners();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Operation State
+  // ---------------------------------------------------------------------------
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
@@ -19,7 +57,14 @@ class BookingProvider extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  /// Initiate an appointment booking. Enforces atomic constraints via Repository.
+  // Mock lists for UI testing (since these are usually fetched via Repositories)
+  List<AppointmentModel> _upcomingAppointments = [];
+  List<AppointmentModel> get upcomingAppointments => _upcomingAppointments;
+
+  List<AppointmentModel> _pastAppointments = [];
+  List<AppointmentModel> get pastAppointments => _pastAppointments;
+
+  /// Initiate an appointment booking.
   Future<void> bookAppointment({
     required String customerId,
     required String customerName,
@@ -33,10 +78,7 @@ class BookingProvider extends ChangeNotifier {
     _isSuccess = false;
 
     try {
-      // In a real implementation, we would generate a robust UUID here.
-      // For now, generating a millisecond-based ID for simplicity.
       final appointmentId = DateTime.now().millisecondsSinceEpoch.toString();
-
       await _appointmentRepository.bookAppointment(
         appointmentId: appointmentId,
         customerId: customerId,
@@ -46,11 +88,36 @@ class BookingProvider extends ChangeNotifier {
         serviceId: serviceId,
         scheduledAt: scheduledAt,
       );
-      
       _isSuccess = true;
+    } on SlotAlreadyBookedException catch (e) {
+      _errorMessage = e.message;
+    } on AppException catch (e) {
+      _errorMessage = e.message;
     } catch (e) {
-      // Handle error state gracefully to display in the UI layer
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = 'An unexpected error occurred. Please try again.';
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> cancelAppointment({
+    required String appointmentId,
+  }) async {
+    _setLoading(true);
+    _errorMessage = null;
+    _isSuccess = false;
+
+    try {
+      await _appointmentRepository.cancelAppointment(appointmentId: appointmentId);
+      _isSuccess = true;
+    } on AppointmentNotFoundException catch (e) {
+      _errorMessage = e.message;
+    } on InvalidStatusTransitionException catch (e) {
+      _errorMessage = e.message;
+    } on AppException catch (e) {
+      _errorMessage = e.message;
+    } catch (e) {
+      _errorMessage = 'An unexpected error occurred. Please try again.';
     } finally {
       _setLoading(false);
     }
@@ -60,6 +127,10 @@ class BookingProvider extends ChangeNotifier {
     _isLoading = false;
     _isSuccess = false;
     _errorMessage = null;
+    _selectedBranch = null;
+    _selectedService = null;
+    _selectedStylist = null;
+    _selectedSlot = null;
     notifyListeners();
   }
 
