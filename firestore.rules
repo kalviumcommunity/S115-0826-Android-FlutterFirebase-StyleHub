@@ -1,1 +1,114 @@
-rules_version = '2';\r\nservice cloud.firestore {\r\n  match /databases/{database}/documents {\r\n    \r\n    // =========================================================================\r\n    // Helper Functions for Role-Based Access Control\r\n    // =========================================================================\r\n    \r\n    function isAuthenticated() {\r\n      return request.auth != null;\r\n    }\r\n    \r\n    // Read the user's Firestore document to determine role and branch.\r\n    // This replaces the broken custom-claims approach (request.auth.token.role)\r\n    // with a working Firestore-document-read approach.\r\n    function userDoc() {\r\n      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;\r\n    }\r\n    \r\n    function isAdmin() {\r\n      return isAuthenticated() && userDoc().role == 'admin';\r\n    }\r\n    \r\n    function isStaff(branchId) {\r\n      return isAuthenticated() && userDoc().role == 'staff' && userDoc().branchId == branchId;\r\n    }\r\n    \r\n    function isAnyStaff() {\r\n      return isAuthenticated() && userDoc().role == 'staff';\r\n    }\r\n    \r\n    function isStaffOrAdmin(branchId) {\r\n      return isStaff(branchId) || isAdmin();\r\n    }\r\n    \r\n    function isOwner(customerId) {\r\n      return isAuthenticated() && request.auth.uid == customerId;\r\n    }\r\n    \r\n    // =========================================================================\r\n    // Data Validation Helpers\r\n    // =========================================================================\r\n    \r\n    function isValidRole(role) {\r\n      return role in ['customer', 'staff', 'admin'];\r\n    }\r\n    \r\n    function isValidAppointmentStatus(status) {\r\n      return status in ['pending', 'confirmed', 'completed', 'cancelled', 'no_show'];\r\n    }\r\n    \r\n    function hasRequiredFields(requiredFields) {\r\n      return request.resource.data.keys().hasAll(requiredFields);\r\n    }\r\n    \r\n    function isValidTimestamp(field) {\r\n      return request.resource.data[field] is timestamp;\r\n    }\r\n\r\n    // ---------------------------------------------------------\r\n    // Users Collection\r\n    // ---------------------------------------------------------\r\n    match /users/{uid} {\r\n      allow read: if isAuthenticated();\r\n      \r\n      allow create: if isOwner(uid)\r\n                    && hasRequiredFields(['uid', 'name', 'email', 'phone', 'role'])\r\n                    && request.resource.data.uid == uid\r\n                    && isValidRole(request.resource.data.role)\r\n                    && request.resource.data.role == 'customer';\r\n      \r\n      allow update: if (isOwner(uid) && request.resource.data.role == resource.data.role)\r\n                    || isAdmin();\r\n      \r\n      allow delete: if isAdmin();\r\n    }\r\n\r\n    // ---------------------------------------------------------\r\n    // Appointments Collection\r\n    // ---------------------------------------------------------\r\n    match /appointments/{appointmentId} {\r\n      allow read: if isOwner(resource.data.customerId) || isStaff(resource.data.branchId) || isAdmin();\r\n      \r\n      allow create: if (isOwner(request.resource.data.customerId) || isStaffOrAdmin(request.resource.data.branchId))\r\n                    && hasRequiredFields(['customerId', 'branchId', 'stylistId', 'serviceId', 'status', 'scheduledAt'])\r\n                    && request.resource.data.status == 'pending'\r\n                    && isValidTimestamp('scheduledAt');\r\n      \r\n      allow update: if (isOwner(resource.data.customerId) \r\n                        && request.resource.data.status == 'cancelled'\r\n                        && isValidAppointmentStatus(request.resource.data.status)\r\n                        && !(resource.data.status in ['completed', 'cancelled', 'no_show']))\r\n                    || (isStaffOrAdmin(resource.data.branchId)\r\n                        && isValidAppointmentStatus(request.resource.data.status));\r\n      \r\n      allow delete: if isAdmin();\r\n    }\r\n    \r\n    // ---------------------------------------------------------\r\n    // Appointment Slots (Double-Booking Prevention)\r\n    // ---------------------------------------------------------\r\n    match /appointmentSlots/{slotId} {\r\n      allow read: if isAuthenticated();\r\n      \r\n      allow create: if isAuthenticated()\r\n                    && hasRequiredFields(['slotId', 'appointmentId', 'stylistId', 'branchId', 'scheduledAt']);\r\n      \r\n      allow delete: if isStaffOrAdmin(resource.data.branchId)\r\n                    || isOwner(resource.data.customerId);\r\n      \r\n      allow update: if false;\r\n    }\r\n    \r\n    // ---------------------------------------------------------\r\n    // Service History Collection\r\n    // ---------------------------------------------------------\r\n    match /serviceHistory/{historyId} {\r\n      allow read: if isOwner(resource.data.customerId) || isAnyStaff() || isAdmin();\r\n      \r\n      allow create: if (isStaff(request.resource.data.branchId) || isAdmin())\r\n                    && hasRequiredFields(['customerId', 'appointmentId', 'branchId', 'stylistId', 'serviceId', 'completedAt']);\r\n      \r\n      allow update: if false;\r\n      allow delete: if isAdmin();\r\n    }\r\n    \r\n    // ---------------------------------------------------------\r\n    // Branches Collection\r\n    // ---------------------------------------------------------\r\n    match /branches/{branchId} {\r\n      allow read: if true;\r\n      allow write: if isAdmin();\r\n    }\r\n    \r\n    // ---------------------------------------------------------\r\n    // Stylists Collection\r\n    // ---------------------------------------------------------\r\n    match /stylists/{stylistId} {\r\n      allow read: if true;\r\n      \r\n      allow create: if isAdmin() \r\n                    || (isAnyStaff() && isStaff(request.resource.data.branchId));\r\n      allow update: if isAdmin() || isStaff(resource.data.branchId);\r\n      allow delete: if isAdmin();\r\n    }\r\n    \r\n    // ---------------------------------------------------------\r\n    // Services Collection\r\n    // ---------------------------------------------------------\r\n    match /services/{serviceId} {\r\n      allow read: if true;\r\n      \r\n      allow create: if isAdmin()\r\n                    || (isAnyStaff() && isStaff(request.resource.data.branchId));\r\n      allow update: if isAdmin() || isStaff(resource.data.branchId);\r\n      allow delete: if isAdmin();\r\n    }\r\n\r\n    // ---------------------------------------------------------\r\n    // Audit Log Collection (Append-Only)\r\n    // ---------------------------------------------------------\r\n    match /auditLog/{logId} {\r\n      allow read: if isAdmin();\r\n      \r\n      allow create: if isAuthenticated()\r\n                    && hasRequiredFields(['action', 'actorUid', 'targetCollection', 'targetDocId', 'timestamp'])\r\n                    && request.resource.data.actorUid == request.auth.uid;\r\n      \r\n      allow update: if false;\r\n      allow delete: if isAdmin();\r\n    }\r\n    \r\n    // =========================================================================\r\n    // Global Deny-All Fallback\r\n    // =========================================================================\r\n    match /{document=**} {\r\n      allow read, write: if false;\r\n    }\r\n  }\r\n}\r\n
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == "manishambagal@gmail.com" ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isStaff() {
+      return isSignedIn() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff')
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow get: if isSignedIn() && (isOwner(userId) || isStaff() || isAdmin());
+      allow list: if isSignedIn() && (isAdmin() || isStaff());
+      allow create: if isSignedIn() && isValidId(userId) && (
+        isOwner(userId) && (incoming().role == 'customer' || isAdmin())
+      );
+      allow update: if isSignedIn() && isValidId(userId) && (
+        isAdmin() || 
+        (isOwner(userId) && !incoming().diff(existing()).affectedKeys().hasAny(['role', 'uid']))
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Branches Collection
+    match /branches/{branchId} {
+      allow read: if true; // Public catalog for discovery and booking
+      allow create, update, delete: if isAdmin() && isValidId(branchId);
+    }
+
+    // Stylists Collection
+    match /stylists/{stylistId} {
+      allow read: if true; // Public catalog for discovery and booking
+      allow create, delete: if isAdmin() && isValidId(stylistId);
+      allow update: if isValidId(stylistId) && (
+        isAdmin() || 
+        (isStaff() && incoming().diff(existing()).affectedKeys().hasOnly(['bio', 'availability', 'rating']))
+      );
+    }
+
+    // Services Collection
+    match /services/{serviceId} {
+      allow read: if true; // Public catalog for booking
+      allow create, update, delete: if isAdmin() && isValidId(serviceId);
+    }
+
+    // Appointments Collection
+    // Global customer ID enables cross-branch bookings while ensuring strict data ownership
+    match /appointments/{appointmentId} {
+      allow get: if isSignedIn() && isValidId(appointmentId) && (
+        resource.data.customerId == request.auth.uid || isStaff() || isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        // Customer queries only their appointments, or staff/admin
+        resource.data.customerId == request.auth.uid || isStaff() || isAdmin()
+      );
+      allow create: if isSignedIn() && isValidId(appointmentId) && (
+        // Customer can only create booking for themselves
+        incoming().customerId == request.auth.uid &&
+        incoming().status == 'Pending' || incoming().status == 'Confirmed' || isAdmin()
+      );
+      allow update: if isSignedIn() && isValidId(appointmentId) && (
+        isAdmin() ||
+        // Customer can cancel their own pending/confirmed appointment
+        (resource.data.customerId == request.auth.uid && 
+         existing().status != 'Completed' && existing().status != 'Cancelled' &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) &&
+         incoming().status == 'Cancelled') ||
+        // Staff can update status (Confirm, Complete, Cancel)
+        (isStaff() &&
+         existing().status != 'Completed' &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'notes', 'updatedAt', 'startTime', 'endTime']))
+      );
+      allow delete: if isAdmin();
+    }
+  }
+}
