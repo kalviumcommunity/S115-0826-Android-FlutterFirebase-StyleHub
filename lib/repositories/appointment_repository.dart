@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/app_exceptions.dart';
 import '../services/appointment_service.dart';
 
@@ -27,6 +28,11 @@ class AppointmentRepository {
     required String stylistId,
     required String serviceId,
     required DateTime scheduledAt,
+    required String branchName,
+    required String stylistName,
+    required String serviceName,
+    required double price,
+    String notes = '',
   }) async {
     try {
       await _appointmentService.bookAppointment(
@@ -37,6 +43,11 @@ class AppointmentRepository {
         stylistId: stylistId,
         serviceId: serviceId,
         scheduledAt: scheduledAt,
+        branchName: branchName,
+        stylistName: stylistName,
+        serviceName: serviceName,
+        price: price,
+        notes: notes,
       );
     } on SlotAlreadyBookedException {
       rethrow;
@@ -77,6 +88,29 @@ class AppointmentRepository {
     }
   }
 
+  Future<void> rescheduleAppointment({
+    required String appointmentId,
+    required DateTime newDateTime,
+  }) async {
+    try {
+      await _appointmentService.rescheduleAppointment(
+        appointmentId: appointmentId,
+        newDateTime: newDateTime,
+      );
+    } on AppointmentNotFoundException {
+      rethrow;
+    } on InvalidStatusTransitionException {
+      rethrow;
+    } on SlotAlreadyBookedException {
+      rethrow;
+    } catch (e) {
+      throw FirestoreException(
+        'Failed to reschedule appointment: ${e.toString()}',
+        code: 'reschedule-failed',
+      );
+    }
+  }
+
   /// Completes an appointment using atomic batch writes.
   ///
   /// Throws [FirestoreException] for unexpected Firestore failures.
@@ -86,6 +120,11 @@ class AppointmentRepository {
     required String branchId,
     required String stylistId,
     required String serviceId,
+    required String branchName,
+    required String stylistName,
+    required String serviceName,
+    required double price,
+    String notes = '',
   }) async {
     try {
       await _appointmentService.completeAppointment(
@@ -94,6 +133,11 @@ class AppointmentRepository {
         branchId: branchId,
         stylistId: stylistId,
         serviceId: serviceId,
+        branchName: branchName,
+        stylistName: stylistName,
+        serviceName: serviceName,
+        price: price,
+        notes: notes,
       );
     } catch (e) {
       throw FirestoreException(
@@ -101,5 +145,29 @@ class AppointmentRepository {
         code: 'completion-failed',
       );
     }
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> getCustomerAppointmentsStream(String customerId) {
+    return FirebaseFirestore.instance
+        .collection('appointments')
+        .where('customerId', isEqualTo: customerId)
+        .orderBy('scheduledAt', descending: true)
+        .snapshots();
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> getBranchAppointmentsStream(String branchId) {
+    return FirebaseFirestore.instance
+        .collection('appointments')
+        .where('branchId', isEqualTo: branchId)
+        .orderBy('scheduledAt', descending: false)
+        .snapshots();
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> getCustomerServiceHistoryStream(String customerId) {
+    return FirebaseFirestore.instance
+        .collection('serviceHistory')
+        .where('customerId', isEqualTo: customerId)
+        .orderBy('completedAt', descending: true)
+        .snapshots();
   }
 }

@@ -18,6 +18,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
@@ -27,6 +28,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -48,7 +50,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
-        phone: '', // Phone not captured in this UI yet
+        phone: _phoneController.text.trim(),
       );
 
       if (success) {
@@ -128,6 +130,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       }
                       if (!value.contains('@')) {
                         return 'Enter a valid email';
+                      }
+                      return null;
+                    },
+                  ),
+                  AppTextField(
+                    labelText: 'Phone',
+                    hintText: 'Enter your phone number',
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    prefixIcon: Icons.phone_outlined,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Phone number is required';
                       }
                       return null;
                     },

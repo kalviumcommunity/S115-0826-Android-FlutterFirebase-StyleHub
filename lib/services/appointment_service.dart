@@ -50,6 +50,11 @@ class AppointmentService {
     required String stylistId,
     required String serviceId,
     required DateTime scheduledAt,
+    required String branchName,
+    required String stylistName,
+    required String serviceName,
+    required double price,
+    String notes = '',
   }) async {
     final String slotId = generateSlotId(stylistId, scheduledAt);
 
@@ -78,10 +83,17 @@ class AppointmentService {
         'customerId': customerId,
         'customerName': customerName,
         'branchId': branchId,
+        'branchName': branchName,
         'stylistId': stylistId,
+        'stylistName': stylistName,
         'serviceId': serviceId,
+        'serviceName': serviceName,
+        'price': price,
+        'notes': notes,
         'status': 'pending',
         'scheduledAt': Timestamp.fromDate(scheduledAt),
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
     });
   }
@@ -139,6 +151,62 @@ class AppointmentService {
     });
   }
 
+  Future<void> rescheduleAppointment({
+    required String appointmentId,
+    required DateTime newDateTime,
+  }) async {
+    final appointmentRef =
+        _firestore.collection('appointments').doc(appointmentId);
+
+    await _firestore.runTransaction((transaction) async {
+      final appointmentSnapshot = await transaction.get(appointmentRef);
+
+      if (!appointmentSnapshot.exists) {
+        throw const AppointmentNotFoundException();
+      }
+
+      final data = appointmentSnapshot.data()!;
+      final currentStatus = data['status'] as String;
+
+      const cancellableStatuses = {'pending', 'confirmed'};
+      if (!cancellableStatuses.contains(currentStatus)) {
+        throw const InvalidStatusTransitionException(
+          'Only pending or confirmed appointments can be rescheduled.',
+        );
+      }
+
+      final stylistId = data['stylistId'] as String;
+      final branchId = data['branchId'] as String;
+      final oldScheduledAt = (data['scheduledAt'] as Timestamp).toDate();
+      
+      final oldSlotId = generateSlotId(stylistId, oldScheduledAt);
+      final oldSlotRef = _firestore.collection('appointmentSlots').doc(oldSlotId);
+
+      final newSlotId = generateSlotId(stylistId, newDateTime);
+      final newSlotRef = _firestore.collection('appointmentSlots').doc(newSlotId);
+
+      if (oldSlotId != newSlotId) {
+        final newSlotSnapshot = await transaction.get(newSlotRef);
+        if (newSlotSnapshot.exists) {
+          throw const SlotAlreadyBookedException();
+        }
+        transaction.delete(oldSlotRef);
+        transaction.set(newSlotRef, {
+          'slotId': newSlotId,
+          'appointmentId': appointmentId,
+          'stylistId': stylistId,
+          'branchId': branchId,
+          'scheduledAt': Timestamp.fromDate(newDateTime),
+        });
+      }
+
+      transaction.update(appointmentRef, {
+        'scheduledAt': Timestamp.fromDate(newDateTime),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Appointment Completion (TRD §3 — Batch Write)
   // ---------------------------------------------------------------------------
@@ -156,6 +224,11 @@ class AppointmentService {
     required String branchId,
     required String stylistId,
     required String serviceId,
+    required String branchName,
+    required String stylistName,
+    required String serviceName,
+    required double price,
+    String notes = '',
   }) async {
     final batch = _firestore.batch();
 
@@ -165,15 +238,23 @@ class AppointmentService {
         _firestore.collection('serviceHistory').doc(); // Auto-generates ID
 
     // 1. Update appointment status to 'completed'
-    batch.update(appointmentRef, {'status': 'completed'});
+    batch.update(appointmentRef, {
+      'status': 'completed',
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
 
     // 2. Create new document in serviceHistory
     batch.set(historyRef, {
       'customerId': customerId,
       'appointmentId': appointmentId,
       'branchId': branchId,
+      'branchName': branchName,
       'stylistId': stylistId,
+      'stylistName': stylistName,
       'serviceId': serviceId,
+      'serviceName': serviceName,
+      'price': price,
+      'notes': notes,
       'completedAt': FieldValue.serverTimestamp(),
     });
 

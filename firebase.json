@@ -1,0 +1,1 @@
+{\r\n  \"firestore\": {\r\n    \"rules\": \"firestore.rules\",\r\n    \"indexes\": \"firestore.indexes.json\"\r\n  },\r\n  \"storage\": {\r\n    \"rules\": \"storage.rules\"\r\n  }\r\n}\r\n
