@@ -14,7 +14,7 @@ import {
   Tag
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { dataService } from '../../services/dataService';
+import { useAppointments, useBranches, getCustomerNetworkProfile } from '../../services/dataService';
 import { Appointment } from '../../types';
 import { AppCard } from '../common/AppCard';
 import { AppButton } from '../common/AppButton';
@@ -29,22 +29,25 @@ export const CustomerHistoryScreen: React.FC<CustomerHistoryScreenProps> = ({
   onRebook,
   onExploreBranches,
 }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, role } = useAuth();
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('all');
 
-  const historyAppointments = currentUser 
-    ? dataService.getCustomerAppointments(currentUser.uid).filter(a => a.status === 'Completed')
-    : [];
+  const { appointments, loading: loadingApts } = useAppointments(currentUser?.uid, role);
+  const { branches, loading: loadingBranches } = useBranches();
+
+  const historyAppointments = appointments.filter(a => a.status === 'Completed');
 
   const networkProfile = currentUser 
-    ? dataService.getCustomerNetworkProfile(currentUser.uid) 
+    ? getCustomerNetworkProfile(appointments, currentUser.uid) 
     : null;
 
   const filteredHistory = selectedBranchFilter === 'all'
     ? historyAppointments
     : historyAppointments.filter(a => a.branchId === selectedBranchFilter);
 
-  const branches = dataService.getBranches();
+  if (loadingApts || loadingBranches) {
+    return <div className="p-8 text-center text-slate-500 animate-pulse">Loading history...</div>;
+  }
 
   return (
     <div className="space-y-5 pb-6">

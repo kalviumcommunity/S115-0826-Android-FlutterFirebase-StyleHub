@@ -9,12 +9,10 @@ import {
   Check, 
   Copy, 
   Sparkles, 
-  RefreshCw,
   Building,
   Star
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { dataService } from '../../services/dataService';
 import { AppCard } from '../common/AppCard';
 import { AppButton } from '../common/AppButton';
 import { AppTextField } from '../common/AppTextField';
@@ -26,20 +24,19 @@ interface CustomerProfileScreenProps {
 export const CustomerProfileScreen: React.FC<CustomerProfileScreenProps> = ({
   onRoleSwitched,
 }) => {
-  const { currentUser, updateProfile, logout, switchRole } = useAuth();
+  const { currentUser, updateProfile, logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(currentUser?.name || '');
   const [phone, setPhone] = useState(currentUser?.phone || '');
   const [copiedUid, setCopiedUid] = useState(false);
-  const [resetSuccess, setResetSuccess] = useState(false);
 
-  const networkProfile = currentUser 
-    ? dataService.getCustomerNetworkProfile(currentUser.uid)
-    : null;
-
-  const handleSave = () => {
-    updateProfile({ name, phone });
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      await updateProfile({ name, phone });
+      setIsEditing(false);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const copyUid = () => {
@@ -47,14 +44,6 @@ export const CustomerProfileScreen: React.FC<CustomerProfileScreenProps> = ({
     navigator.clipboard.writeText(currentUser.uid);
     setCopiedUid(true);
     setTimeout(() => setCopiedUid(false), 2000);
-  };
-
-  const handleResetData = () => {
-    if (window.confirm('Reset all branches, appointments, and stylists to default demo data?')) {
-      dataService.resetToDemoData();
-      setResetSuccess(true);
-      setTimeout(() => setResetSuccess(false), 2500);
-    }
   };
 
   return (
@@ -171,70 +160,6 @@ export const CustomerProfileScreen: React.FC<CustomerProfileScreenProps> = ({
         </ul>
       </AppCard>
 
-      {/* Role Switcher for Seamless Testing */}
-      <AppCard padding="md" className="space-y-3 border-rose-100 bg-rose-50/20">
-        <div>
-          <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">
-            QA Role Simulator
-          </span>
-          <h4 className="text-sm font-bold text-slate-900">Switch Application Role</h4>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Switch instantly between Customer, Salon Staff, and Network Admin roles.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            onClick={() => {
-              switchRole('customer');
-              onRoleSwitched();
-            }}
-            className="p-2.5 rounded-xl border border-rose-600 bg-white text-rose-700 text-xs font-bold shadow-xs flex flex-col items-center gap-1"
-          >
-            <User className="w-4 h-4" />
-            <span>Customer</span>
-          </button>
-
-          <button
-            onClick={() => {
-              switchRole('staff');
-              onRoleSwitched();
-            }}
-            className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs flex flex-col items-center gap-1"
-          >
-            <Building className="w-4 h-4 text-slate-500" />
-            <span>Salon Staff</span>
-          </button>
-
-          <button
-            onClick={() => {
-              switchRole('admin');
-              onRoleSwitched();
-            }}
-            className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs flex flex-col items-center gap-1"
-          >
-            <Shield className="w-4 h-4 text-slate-500" />
-            <span>Admin</span>
-          </button>
-        </div>
-      </AppCard>
-
-      {/* QA Reset Demo Data */}
-      <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-100 text-xs">
-        <div>
-          <span className="font-semibold text-slate-700 block">Reset Demo Database</span>
-          <span className="text-[11px] text-slate-500">Restore default branches & bookings</span>
-        </div>
-        <AppButton
-          size="sm"
-          variant="outline"
-          onClick={handleResetData}
-          leftIcon={<RefreshCw className="w-3 h-3" />}
-        >
-          {resetSuccess ? 'Reset Complete!' : 'Reset Data'}
-        </AppButton>
-      </div>
-
       {/* Logout */}
       <AppButton
         variant="danger"
@@ -248,3 +173,4 @@ export const CustomerProfileScreen: React.FC<CustomerProfileScreenProps> = ({
     </div>
   );
 };
+

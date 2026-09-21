@@ -13,7 +13,7 @@ import {
   Filter
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { dataService } from '../../services/dataService';
+import { useBranches, useServices, useStylists, useAppointments, getCustomerNetworkProfile } from '../../services/dataService';
 import { Branch, SalonService, Stylist, Appointment } from '../../types';
 import { AppCard } from '../common/AppCard';
 import { AppButton } from '../common/AppButton';
@@ -33,29 +33,29 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
   onViewAllAppointments,
   onViewHistory,
 }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, role } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
-  const branches = dataService.getBranches().filter(b => b.active);
-  const services = dataService.getServices().filter(s => s.active);
-  const stylists = dataService.getStylists().filter(s => s.active);
+  const { branches, loading: loadingBranches } = useBranches();
+  const { services, loading: loadingServices } = useServices();
+  const { stylists, loading: loadingStylists } = useStylists();
+  const { appointments: customerApts, loading: loadingApts } = useAppointments(currentUser?.uid, role);
+
+  const activeBranches = branches.filter(b => b.active);
+  const activeServices = services.filter(s => s.active);
+  const activeStylists = stylists.filter(s => s.active);
   
-  // Customer's upcoming appointments
-  const customerApts = currentUser ? dataService.getCustomerAppointments(currentUser.uid) : [];
   const nextAppointment = customerApts.find(a => a.status === 'Confirmed' || a.status === 'Pending');
+  const networkProfile = currentUser ? getCustomerNetworkProfile(customerApts, currentUser.uid) : null;
 
-  // Customer cross-branch network profile
-  const networkProfile = currentUser ? dataService.getCustomerNetworkProfile(currentUser.uid) : null;
-
-  // Filtered lists based on search
-  const filteredBranches = branches.filter(b => 
+  const filteredBranches = activeBranches.filter(b => 
     b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     b.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
     b.address.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredServices = services.filter(s => {
+  const filteredServices = activeServices.filter(s => {
     const matchesQuery = s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.category.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCat = selectedCategory === 'All' || s.category === selectedCategory;
@@ -63,6 +63,10 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
   });
 
   const categories = ['All', 'Hair', 'Skin & Facial', 'Spa & Wellness', 'Nails', 'Grooming'];
+
+  if (loadingBranches || loadingServices || loadingStylists || loadingApts) {
+    return <div className="p-8 text-center text-slate-500 animate-pulse">Loading StylHub...</div>;
+  }
 
   return (
     <div className="space-y-5 pb-6">

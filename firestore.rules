@@ -45,6 +45,10 @@ service cloud.firestore {
       return resource.data;
     }
 
+    function getAssignedBranch() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.assignedBranchId;
+    }
+
     // Users Collection
     match /users/{userId} {
       allow get: if isSignedIn() && (isOwner(userId) || isStaff() || isAdmin());
@@ -54,59 +58,66 @@ service cloud.firestore {
       );
       allow update: if isSignedIn() && isValidId(userId) && (
         isAdmin() || 
-        (isOwner(userId) && !incoming().diff(existing()).affectedKeys().hasAny(['role', 'uid']))
+        (isOwner(userId) && !incoming().diff(existing()).affectedKeys().hasAny(['role', 'uid', 'assignedBranchId']))
       );
       allow delete: if isAdmin();
     }
 
     // Branches Collection
     match /branches/{branchId} {
-      allow read: if true; // Public catalog for discovery and booking
+      allow read: if isSignedIn(); // Available for discovery and booking
       allow create, update, delete: if isAdmin() && isValidId(branchId);
     }
 
     // Stylists Collection
     match /stylists/{stylistId} {
-      allow read: if true; // Public catalog for discovery and booking
+      allow read: if isSignedIn(); // Available for discovery and booking
       allow create, delete: if isAdmin() && isValidId(stylistId);
       allow update: if isValidId(stylistId) && (
         isAdmin() || 
-        (isStaff() && incoming().diff(existing()).affectedKeys().hasOnly(['bio', 'availability', 'rating']))
+        (isStaff() && existing().branchId == getAssignedBranch() && incoming().diff(existing()).affectedKeys().hasOnly(['bio', 'availability', 'rating']))
       );
     }
 
     // Services Collection
     match /services/{serviceId} {
-      allow read: if true; // Public catalog for booking
+      allow read: if isSignedIn(); // Available for discovery and booking
       allow create, update, delete: if isAdmin() && isValidId(serviceId);
+    }
+    
+    // Appointment Slots Collection
+    match /appointmentSlots/{slotId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && incoming().customerId == request.auth.uid;
+      allow delete: if isSignedIn() && (
+        existing().customerId == request.auth.uid || 
+        isAdmin() || 
+        (isStaff() && existing().branchId == getAssignedBranch())
+      );
+      allow update: if isAdmin() || (isStaff() && existing().branchId == getAssignedBranch());
     }
 
     // Appointments Collection
-    // Global customer ID enables cross-branch bookings while ensuring strict data ownership
     match /appointments/{appointmentId} {
       allow get: if isSignedIn() && isValidId(appointmentId) && (
-        resource.data.customerId == request.auth.uid || isStaff() || isAdmin()
+        resource.data.customerId == request.auth.uid || 
+        isAdmin() ||
+        (isStaff() && resource.data.branchId == getAssignedBranch())
       );
       allow list: if isSignedIn() && (
-        // Customer queries only their appointments, or staff/admin
-        resource.data.customerId == request.auth.uid || isStaff() || isAdmin()
+        resource.data.customerId == request.auth.uid || 
+        isAdmin() ||
+        (isStaff() && resource.data.branchId == getAssignedBranch())
       );
       allow create: if isSignedIn() && isValidId(appointmentId) && (
-        // Customer can only create booking for themselves
-        incoming().customerId == request.auth.uid &&
-        incoming().status == 'Pending' || incoming().status == 'Confirmed' || isAdmin()
+        (incoming().customerId == request.auth.uid && incoming().status == 'Confirmed') || isAdmin()
       );
       allow update: if isSignedIn() && isValidId(appointmentId) && (
         isAdmin() ||
-        // Customer can cancel their own pending/confirmed appointment
-        (resource.data.customerId == request.auth.uid && 
-         existing().status != 'Completed' && existing().status != 'Cancelled' &&
-         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) &&
-         incoming().status == 'Cancelled') ||
-        // Staff can update status (Confirm, Complete, Cancel)
-        (isStaff() &&
+        (resource.data.customerId == request.auth.uid) ||
+        (isStaff() && existing().branchId == getAssignedBranch() &&
          existing().status != 'Completed' &&
-         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'notes', 'updatedAt', 'startTime', 'endTime']))
+         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'notes', 'updatedAt', 'startTime', 'endTime', 'appointmentDate', 'stylistId', 'stylistName']))
       );
       allow delete: if isAdmin();
     }

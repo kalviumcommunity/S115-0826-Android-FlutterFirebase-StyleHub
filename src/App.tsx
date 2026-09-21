@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar } from './components/navigation/Navbar';
-import { BottomNav, CustomerTab } from './components/navigation/BottomNav';
+import { BottomNav } from './components/navigation/BottomNav';
 import { CustomerHomeScreen } from './components/customer/CustomerHomeScreen';
 import { CustomerAppointmentsScreen } from './components/customer/CustomerAppointmentsScreen';
 import { CustomerHistoryScreen } from './components/customer/CustomerHistoryScreen';
@@ -10,30 +11,31 @@ import { BookingFlowModal } from './components/customer/BookingFlowModal';
 import { StaffDashboard } from './components/staff/StaffDashboard';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AuthScreen } from './components/auth/AuthScreen';
-import { dataService } from './services/dataService';
 import { Appointment } from './types';
-import { Sparkles, ShieldCheck, CheckCircle2, ChevronDown, ChevronUp, Layers, HelpCircle, Smartphone } from 'lucide-react';
+import { ShieldCheck, CheckCircle2, ChevronDown, ChevronUp, Smartphone } from 'lucide-react';
 import { FlutterArchitectureModal } from './components/flutter/FlutterArchitectureModal';
 
+const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
+  const { isAuthenticated, isLoading, role } = useAuth();
+  const location = useLocation();
+
+  if (isLoading) return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />;
+  if (allowedRoles && !allowedRoles.includes(role)) return <Navigate to="/" replace />;
+  return <>{children}</>;
+};
+
 const MainLayout: React.FC = () => {
-  const { role, isAuthenticated, currentUser, switchRole } = useAuth();
+  const { role, currentUser } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   
-  // Navigation state for customer
-  const [customerTab, setCustomerTab] = useState<CustomerTab>('home');
-  
-  // Booking modal state
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [bookingBranchId, setBookingBranchId] = useState<string | undefined>();
   const [bookingServiceId, setBookingServiceId] = useState<string | undefined>();
   const [bookingStylistId, setBookingStylistId] = useState<string | undefined>();
-
-  // Flutter Codebase architecture inspector modal state
   const [isFlutterModalOpen, setIsFlutterModalOpen] = useState(false);
-
-  // Live QA Verification banner collapse state
   const [showQaBanner, setShowQaBanner] = useState(true);
-
-  // Success toast for bookings
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -57,26 +59,26 @@ const MainLayout: React.FC = () => {
 
   const handleBookingSuccess = (apt: Appointment) => {
     showToast(`Appointment confirmed at ${apt.branchName} for ${apt.appointmentDate} at ${apt.startTime}!`);
-    setCustomerTab('appointments');
+    navigate('/appointments');
   };
 
-  if (!isAuthenticated) {
-    return <AuthScreen />;
-  }
+  // Determine active tab for BottomNav
+  let activeTab: any = 'home';
+  if (location.pathname === '/appointments') activeTab = 'appointments';
+  else if (location.pathname === '/history') activeTab = 'history';
+  else if (location.pathname === '/profile') activeTab = 'profile';
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-start text-slate-800">
-      
-      {/* Mobile container simulator with responsive width */}
       <div className="w-full max-w-lg min-h-screen bg-slate-50 flex flex-col shadow-xl relative border-x border-slate-200/70 pb-20">
         
-        {/* Top App Bar */}
-        <Navbar
-          onOpenBooking={() => handleStartBooking()}
-          onNavigateHome={() => setCustomerTab('home')}
-        />
+        {role === 'customer' && (
+          <Navbar
+            onOpenBooking={() => handleStartBooking()}
+            onNavigateHome={() => navigate('/')}
+          />
+        )}
 
-        {/* Global Architecture & QA Verification Guide Banner */}
         <div className="bg-slate-900 text-white text-xs border-b border-slate-800">
           <button
             onClick={() => setShowQaBanner(!showQaBanner)}
@@ -99,27 +101,6 @@ const MainLayout: React.FC = () => {
               </p>
               <div className="flex flex-wrap gap-1.5 pt-1">
                 <button
-                  onClick={() => {
-                    switchRole('customer');
-                    setCustomerTab('history');
-                  }}
-                  className="px-2 py-1 rounded-md bg-rose-600 text-white font-semibold hover:bg-rose-500 transition"
-                >
-                  1. View Cross-Branch History
-                </button>
-                <button
-                  onClick={() => switchRole('staff')}
-                  className="px-2 py-1 rounded-md bg-blue-600 text-white font-semibold hover:bg-blue-500 transition"
-                >
-                  2. Open Staff Console
-                </button>
-                <button
-                  onClick={() => switchRole('admin')}
-                  className="px-2 py-1 rounded-md bg-amber-600 text-white font-semibold hover:bg-amber-500 transition"
-                >
-                  3. Open HQ Analytics
-                </button>
-                <button
                   onClick={() => setIsFlutterModalOpen(true)}
                   className="px-2 py-1 rounded-md bg-purple-600 text-white font-semibold hover:bg-purple-500 transition flex items-center gap-1"
                 >
@@ -131,7 +112,6 @@ const MainLayout: React.FC = () => {
           )}
         </div>
 
-        {/* Dynamic Toast Message */}
         {toastMessage && (
           <div className="fixed top-14 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white text-xs px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 border border-slate-700 animate-in fade-in slide-in-from-top-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -139,56 +119,56 @@ const MainLayout: React.FC = () => {
           </div>
         )}
 
-        {/* Main Content Area */}
         <main className="flex-1 p-4">
-          
-          {/* CUSTOMER ROLE SCREENS */}
-          {role === 'customer' && (
-            <>
-              {customerTab === 'home' && (
-                <CustomerHomeScreen
-                  onStartBooking={handleStartBooking}
-                  onViewAllAppointments={() => setCustomerTab('appointments')}
-                  onViewHistory={() => setCustomerTab('history')}
-                />
-              )}
+          <Routes>
+            <Route path="/login" element={
+               <AuthScreen />
+            } />
 
-              {customerTab === 'appointments' && (
-                <CustomerAppointmentsScreen
-                  onStartBooking={() => handleStartBooking()}
-                  onRebook={handleRebook}
-                />
-              )}
+            {/* CUSTOMER ROUTES */}
+            <Route path="/" element={
+              <ProtectedRoute allowedRoles={['customer']}>
+                <CustomerHomeScreen onStartBooking={handleStartBooking} onViewAllAppointments={() => navigate('/appointments')} onViewHistory={() => navigate('/history')} />
+              </ProtectedRoute>
+            } />
+            <Route path="/appointments" element={
+              <ProtectedRoute allowedRoles={['customer']}>
+                <CustomerAppointmentsScreen onStartBooking={() => handleStartBooking()} onRebook={handleRebook} />
+              </ProtectedRoute>
+            } />
+            <Route path="/history" element={
+              <ProtectedRoute allowedRoles={['customer']}>
+                <CustomerHistoryScreen onRebook={handleRebook} onExploreBranches={() => navigate('/')} />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile" element={
+              <ProtectedRoute allowedRoles={['customer']}>
+                <CustomerProfileScreen onRoleSwitched={() => { /* Not used in real auth easily, redirecting */ navigate('/'); }} />
+              </ProtectedRoute>
+            } />
 
-              {customerTab === 'history' && (
-                <CustomerHistoryScreen
-                  onRebook={handleRebook}
-                  onExploreBranches={() => setCustomerTab('home')}
-                />
-              )}
+            {/* STAFF ROUTE */}
+            <Route path="/staff" element={
+              <ProtectedRoute allowedRoles={['staff']}>
+                <StaffDashboard />
+              </ProtectedRoute>
+            } />
 
-              {customerTab === 'profile' && (
-                <CustomerProfileScreen
-                  onRoleSwitched={() => setCustomerTab('home')}
-                />
-              )}
-            </>
-          )}
-
-          {/* STAFF ROLE SCREEN */}
-          {role === 'staff' && <StaffDashboard />}
-
-          {/* ADMIN ROLE SCREEN */}
-          {role === 'admin' && <AdminDashboard />}
+            {/* ADMIN ROUTE */}
+            <Route path="/admin" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </main>
 
-        {/* Customer Bottom Navigation Bar */}
-        <BottomNav
-          activeCustomerTab={customerTab}
-          onSelectCustomerTab={setCustomerTab}
-        />
+        {role === 'customer' && (
+          <BottomNav activeCustomerTab={activeTab} onSelectCustomerTab={(tab) => navigate(tab === 'home' ? '/' : `/${tab}`)} />
+        )}
 
-        {/* Guided Booking Flow Modal */}
         <BookingFlowModal
           isOpen={isBookingOpen}
           onClose={() => setIsBookingOpen(false)}
@@ -198,12 +178,10 @@ const MainLayout: React.FC = () => {
           initialStylistId={bookingStylistId}
         />
 
-        {/* Flutter Architecture & Codebase Inspector Modal */}
         <FlutterArchitectureModal
           isOpen={isFlutterModalOpen}
           onClose={() => setIsFlutterModalOpen(false)}
         />
-
       </div>
     </div>
   );
@@ -211,8 +189,10 @@ const MainLayout: React.FC = () => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <MainLayout />
-    </AuthProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <MainLayout />
+      </AuthProvider>
+    </BrowserRouter>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
   Clock, 
@@ -17,21 +17,37 @@ import {
   Eye
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { dataService } from '../../services/dataService';
+import { 
+  useBranches, 
+  useStylists, 
+  useAppointments, 
+  useCustomerAppointments, 
+  getCustomerNetworkProfile, 
+  bookingService 
+} from '../../services/dataService';
 import { Appointment, AppointmentStatus, CustomerNetworkInsight } from '../../types';
 import { AppCard } from '../common/AppCard';
 import { AppButton } from '../common/AppButton';
 import { StatusBadge } from '../common/FeedbackWidgets';
 
 export const StaffDashboard: React.FC = () => {
-  const { currentUser } = useAuth();
-  const branches = dataService.getBranches();
-  const stylists = dataService.getStylists();
+  const { currentUser, role } = useAuth();
+  
+  const { branches, loading: loadingBranches } = useBranches();
+  const { stylists, loading: loadingStylists } = useStylists();
 
   // Branch context: default to staff's assigned branch or first branch
   const [selectedBranchId, setSelectedBranchId] = useState<string>(
-    currentUser?.assignedBranchId || branches[0]?.branchId || 'branch_baner'
+    currentUser?.assignedBranchId || 'branch_baner'
   );
+
+  // When branches load, if there's no selected branch or assigned branch, pick the first one
+  useEffect(() => {
+    if (!currentUser?.assignedBranchId && branches.length > 0 && selectedBranchId === 'branch_baner') {
+      setSelectedBranchId(branches[0].branchId);
+    }
+  }, [branches, currentUser, selectedBranchId]);
+
   const [selectedStylistFilter, setSelectedStylistFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<'today' | 'upcoming' | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -44,7 +60,10 @@ export const StaffDashboard: React.FC = () => {
   const [notesInput, setNotesInput] = useState<string>('');
 
   const currentBranch = branches.find(b => b.branchId === selectedBranchId) || branches[0];
-  const branchAppointments = dataService.getBranchAppointments(selectedBranchId);
+  
+  const { appointments: branchAppointments, loading: loadingApts } = useAppointments(currentUser?.uid, role, selectedBranchId);
+  const { customerAppointments: inspectedCustomerAllApts } = useCustomerAppointments(inspectedCustomerId);
+
   const todayStr = new Date().toISOString().split('T')[0];
 
   // Filter appointments
@@ -73,28 +92,27 @@ export const StaffDashboard: React.FC = () => {
     return true;
   });
 
-  const handleStatusChange = (appointmentId: string, newStatus: AppointmentStatus) => {
-    dataService.updateAppointmentStatus(appointmentId, newStatus);
+  const handleStatusChange = async (appointmentId: string, newStatus: AppointmentStatus) => {
+    await bookingService.updateAppointmentStatus(appointmentId, newStatus);
   };
 
-  const handleSaveNotes = (appointmentId: string) => {
-    dataService.updateAppointmentStatus(
-      appointmentId,
-      branchAppointments.find(a => a.appointmentId === appointmentId)?.status || 'Confirmed',
-      notesInput
-    );
+  const handleSaveNotes = async (appointmentId: string) => {
+    const apt = branchAppointments.find(a => a.appointmentId === appointmentId);
+    if (apt) {
+      await bookingService.updateAppointmentStatus(appointmentId, apt.status, notesInput);
+    }
     setEditingNotesAptId(null);
     setNotesInput('');
   };
 
   // Inspect customer cross-branch profile
-  const inspectedProfile: CustomerNetworkInsight | null = inspectedCustomerId 
-    ? dataService.getCustomerNetworkProfile(inspectedCustomerId) 
+  const inspectedProfile: CustomerNetworkInsight | null = inspectedCustomerId && inspectedCustomerAllApts.length > 0
+    ? getCustomerNetworkProfile(inspectedCustomerAllApts, inspectedCustomerId) 
     : null;
 
-  const inspectedCustomerAllApts = inspectedCustomerId
-    ? dataService.getCustomerAppointments(inspectedCustomerId)
-    : [];
+  if (loadingBranches || loadingStylists || loadingApts) {
+    return <div className="p-8 text-center text-slate-500 animate-pulse">Loading Dashboard...</div>;
+  }
 
   return (
     <div className="space-y-5 pb-8">
@@ -213,8 +231,8 @@ export const StaffDashboard: React.FC = () => {
           </div>
         ) : (
           filteredAppointments.map(apt => {
-            // Check if customer is a recognized repeat customer across network
-            const custInsight = dataService.getCustomerNetworkProfile(apt.customerId);
+            // Check if customer is a recognized repeat customer (local approximation using branch data)
+            const custInsight = getCustomerNetworkProfile(branchAppointments, apt.customerId);
             const isCrossBranch = custInsight && custInsight.isCrossBranchCustomer;
 
             return (

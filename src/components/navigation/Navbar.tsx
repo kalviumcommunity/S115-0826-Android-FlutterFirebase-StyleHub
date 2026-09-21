@@ -9,7 +9,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenBooking, onNavigateHome }) => {
-  const { currentUser, role, switchRole, logout, isAuthenticated } = useAuth();
+  const { currentUser, role, logout, isAuthenticated } = useAuth();
   const [showRoleMenu, setShowRoleMenu] = useState(false);
 
   const roleLabels: Record<UserRole, { label: string; color: string; icon: React.ReactNode }> = {
@@ -61,55 +61,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenBooking, onNavigateHome })
             {showRoleMenu && (
               <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 z-50 animate-in fade-in slide-in-from-top-2">
                 <div className="px-2 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
-                  Switch Active Role
-                </div>
-
-                <div className="space-y-1 py-1">
-                  <button
-                    onClick={() => {
-                      switchRole('customer');
-                      setShowRoleMenu(false);
-                    }}
-                    className="w-full flex items-center justify-between p-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-rose-50 hover:text-rose-700 transition"
-                  >
-                    <span className="flex items-center gap-2">
-                      <User className="w-3.5 h-3.5 text-rose-600" />
-                      <span>Customer (Ananya)</span>
-                    </span>
-                    {role === 'customer' && <Check className="w-3.5 h-3.5 text-rose-600" />}
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      switchRole('staff');
-                      setShowRoleMenu(false);
-                    }}
-                    className="w-full flex items-center justify-between p-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition"
-                  >
-                    <span className="flex items-center gap-2">
-                      <Building className="w-3.5 h-3.5 text-blue-600" />
-                      <span>Staff (Rahul - Baner)</span>
-                    </span>
-                    {role === 'staff' && <Check className="w-3.5 h-3.5 text-blue-600" />}
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      switchRole('admin');
-                      setShowRoleMenu(false);
-                    }}
-                    className="w-full flex items-center justify-between p-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-amber-50 hover:text-amber-700 transition"
-                  >
-                    <span className="flex items-center gap-2">
-                      <Shield className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Admin (HQ Analytics)</span>
-                    </span>
-                    {role === 'admin' && <Check className="w-3.5 h-3.5 text-amber-600" />}
-                  </button>
+                  Account Options
                 </div>
 
                 {isAuthenticated && (
-                  <div className="pt-1 border-t border-slate-100">
+                  <div className="pt-1">
                     <button
                       onClick={() => {
                         logout();

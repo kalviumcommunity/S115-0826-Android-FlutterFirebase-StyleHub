@@ -83,6 +83,17 @@ export interface Appointment {
   updatedAt: string;
 }
 
+export interface AppointmentSlot {
+  slotId: string; // e.g., slot_branchId_stylistId_date_time
+  branchId: string;
+  stylistId: string;
+  appointmentDate: string;
+  startTime: string;
+  appointmentId: string;
+  customerId: string;
+  createdAt: string;
+}
+
 export interface CustomerNetworkInsight {
   customerId: string;
   customerName: string;

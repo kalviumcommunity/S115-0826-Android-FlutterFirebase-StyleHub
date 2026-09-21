@@ -10,7 +10,7 @@ interface AuthScreenProps {
 }
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
-  const { login, register, switchRole } = useAuth();
+  const { login, register } = useAuth();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -49,11 +49,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
     }
   };
 
-  const handleQuickLogin = (targetRole: UserRole) => {
-    switchRole(targetRole);
-    onSuccess?.();
-  };
-
   return (
     <div className="min-h-[85vh] flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-100 space-y-6">
@@ -69,47 +64,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
           <p className="text-xs text-slate-500 max-w-xs mx-auto">
             Multi-branch salon network with a single unified customer profile
           </p>
-        </div>
-
-        {/* Quick Demo Logins (For instant tester / reviewer evaluation) */}
-        <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-              1-Click Demo Profiles
-            </span>
-            <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">
-              Instant Access
-            </span>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              onClick={() => handleQuickLogin('customer')}
-              className="p-2 bg-white hover:bg-rose-50 hover:border-rose-300 border border-slate-200 rounded-xl text-center transition group shadow-2xs"
-            >
-              <User className="w-4 h-4 mx-auto text-rose-600 mb-1 group-hover:scale-110 transition" />
-              <span className="text-[11px] font-bold text-slate-800 block">Customer</span>
-              <span className="text-[9px] text-slate-400 block truncate">Ananya</span>
-            </button>
-
-            <button
-              onClick={() => handleQuickLogin('staff')}
-              className="p-2 bg-white hover:bg-slate-100 hover:border-slate-300 border border-slate-200 rounded-xl text-center transition group shadow-2xs"
-            >
-              <Scissors className="w-4 h-4 mx-auto text-slate-700 mb-1 group-hover:scale-110 transition" />
-              <span className="text-[11px] font-bold text-slate-800 block">Staff</span>
-              <span className="text-[9px] text-slate-400 block truncate">Rahul (Baner)</span>
-            </button>
-
-            <button
-              onClick={() => handleQuickLogin('admin')}
-              className="p-2 bg-white hover:bg-slate-100 hover:border-slate-300 border border-slate-200 rounded-xl text-center transition group shadow-2xs"
-            >
-              <ShieldCheck className="w-4 h-4 mx-auto text-amber-600 mb-1 group-hover:scale-110 transition" />
-              <span className="text-[11px] font-bold text-slate-800 block">Admin</span>
-              <span className="text-[9px] text-slate-400 block truncate">Executive</span>
-            </button>
-          </div>
         </div>
 
         {/* Tab switch: Sign In vs Sign Up */}

@@ -14,7 +14,13 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Branch, Stylist, SalonService, Appointment } from '../../types';
-import { dataService } from '../../services/dataService';
+import { 
+  useBranches, 
+  useServices, 
+  useStylists, 
+  useStylistSlots, 
+  bookingService 
+} from '../../services/dataService';
 import { useAuth } from '../../context/AuthContext';
 import { AppButton } from '../common/AppButton';
 import { AppCard } from '../common/AppCard';
@@ -40,9 +46,14 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   initialStylistId,
 }) => {
   const { currentUser } = useAuth();
-  const branches = dataService.getBranches().filter(b => b.active);
-  const services = dataService.getServices().filter(s => s.active);
-  const stylists = dataService.getStylists().filter(s => s.active);
+  
+  const { branches: allBranches } = useBranches();
+  const { services: allServices } = useServices();
+  const { stylists: allStylists } = useStylists();
+
+  const branches = allBranches.filter(b => b.active);
+  const services = allServices.filter(s => s.active);
+  const stylists = allStylists.filter(s => s.active);
 
   // Flow step (1: Branch, 2: Service, 3: Stylist, 4: Date & Time, 5: Summary)
   const [step, setStep] = useState<number>(1);
@@ -56,13 +67,14 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     stylists.find(s => s.stylistId === initialStylistId) || null
   );
   
-  // Date selection (default today or tomorrow)
   const todayStr = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
+
+  const bookedSlots = useStylistSlots(selectedStylist?.stylistId, selectedDate);
 
   if (!isOpen) return null;
 
@@ -124,14 +136,19 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
     try {
       // Create appointment through data service (enforces double-booking validation)
-      const newApt = dataService.createAppointment({
+      const newApt = await bookingService.createAppointment({
         customerId: currentUser.uid,
         customerName: currentUser.name,
         customerPhone: currentUser.phone || '+91 98000 00000',
         customerEmail: currentUser.email,
         branchId: selectedBranch.branchId,
+        branchName: selectedBranch.name,
         stylistId: selectedStylist.stylistId,
+        stylistName: selectedStylist.name,
         serviceId: selectedService.serviceId,
+        serviceName: selectedService.name,
+        servicePrice: selectedService.price,
+        serviceDuration: selectedService.duration,
         appointmentDate: selectedDate,
         startTime: selectedTime,
         notes,
@@ -345,11 +362,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
                 <div className="grid grid-cols-3 gap-2">
                   {timeSlots.map(time => {
-                    const isBooked = !dataService.isSlotAvailable(
-                      selectedStylist?.stylistId || '',
-                      selectedDate,
-                      time
-                    );
+                    const isBooked = bookedSlots.includes(time);
                     const isSelected = selectedTime === time;
 
                     return (

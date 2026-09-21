@@ -1,114 +1,122 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile, UserRole } from '../types';
-import { DEMO_USERS } from '../data/seedData';
+import { auth, db } from '../firebase/config';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged 
+} from 'firebase/auth';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 interface AuthContextType {
   currentUser: UserProfile | null;
   role: UserRole;
   isAuthenticated: boolean;
   isLoading: boolean;
-  switchRole: (role: UserRole) => void;
-  login: (email: string, role?: UserRole) => Promise<boolean>;
-  register: (name: string, email: string, phone: string, role?: UserRole) => Promise<boolean>;
+  login: (email: string, password?: string) => Promise<boolean>;
+  register: (name: string, email: string, phone: string, password?: string) => Promise<boolean>;
   logout: () => void;
-  updateProfile: (data: Partial<UserProfile>) => void;
+  updateProfile: (data: Partial<UserProfile>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const AUTH_STORAGE_KEY = 'stylehub_auth_user_v1';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(AUTH_STORAGE_KEY);
-      if (stored) {
-        setCurrentUser(JSON.parse(stored));
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const userDocRef = doc(db, 'users', firebaseUser.uid);
+          const userDoc = await getDoc(userDocRef);
+          
+          if (userDoc.exists()) {
+            setCurrentUser(userDoc.data() as UserProfile);
+          } else {
+            console.error('User document not found in Firestore for UID:', firebaseUser.uid);
+            setCurrentUser(null);
+          }
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+          setCurrentUser(null);
+        }
       } else {
-        // Default initial session: Customer "Ananya Sharma" with cross-branch history
-        const defaultUser = DEMO_USERS.customer;
-        setCurrentUser(defaultUser);
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(defaultUser));
+        setCurrentUser(null);
       }
-    } catch {
-      setCurrentUser(DEMO_USERS.customer);
-    } finally {
       setIsLoading(false);
-    }
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const switchRole = (newRole: UserRole) => {
-    const user = DEMO_USERS[newRole];
-    if (user) {
-      setCurrentUser(user);
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+  const login = async (email: string, password: string = 'password123'): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged will handle the rest
+      return true;
+    } catch (error) {
+      console.error('Login error:', error);
+      setIsLoading(false);
+      throw error;
     }
   };
 
-  const login = async (email: string, targetRole: UserRole = 'customer'): Promise<boolean> => {
+  const register = async (name: string, email: string, phone: string, password: string = 'password123'): Promise<boolean> => {
     setIsLoading(true);
-    // Simulate network authentication roundtrip
-    await new Promise(r => setTimeout(r, 400));
-    
-    // Check demo users first or construct persistent profile
-    let matchedUser = Object.values(DEMO_USERS).find(u => u.email.toLowerCase() === email.toLowerCase());
-    
-    if (!matchedUser) {
-      matchedUser = {
-        uid: `cust_${Date.now()}`,
-        name: email.split('@')[0],
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+      
+      const newUser: UserProfile = {
+        uid: firebaseUser.uid,
+        name,
         email,
-        phone: '+91 98000 00000',
-        role: targetRole,
+        phone,
+        role: 'customer', // New registrations default to customer
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
+
+      await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
+      
+      setCurrentUser(newUser);
+      setIsLoading(false);
+      return true;
+    } catch (error) {
+      console.error('Registration error:', error);
+      setIsLoading(false);
+      throw error;
     }
-
-    setCurrentUser(matchedUser);
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(matchedUser));
-    setIsLoading(false);
-    return true;
   };
 
-  const register = async (name: string, email: string, phone: string, targetRole: UserRole = 'customer'): Promise<boolean> => {
-    setIsLoading(true);
-    await new Promise(r => setTimeout(r, 450));
-    
-    const newUser: UserProfile = {
-      uid: `cust_${Date.now()}`,
-      name,
-      email,
-      phone,
-      role: targetRole,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    setCurrentUser(newUser);
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newUser));
-    setIsLoading(false);
-    return true;
+  const logout = async () => {
+    try {
+      await signOut(auth);
+      setCurrentUser(null);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
-  const logout = () => {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    // Switch to unauthenticated or prompt login
-    setCurrentUser(null);
-  };
-
-  const updateProfile = (data: Partial<UserProfile>) => {
+  const updateProfile = async (data: Partial<UserProfile>) => {
     if (!currentUser) return;
-    const updated: UserProfile = {
-      ...currentUser,
-      ...data,
-      updatedAt: new Date().toISOString()
-    };
-    setCurrentUser(updated);
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated));
+    try {
+      const updated: UserProfile = {
+        ...currentUser,
+        ...data,
+        updatedAt: new Date().toISOString()
+      };
+      
+      await updateDoc(doc(db, 'users', currentUser.uid), data);
+      setCurrentUser(updated);
+    } catch (error) {
+      console.error('Profile update error:', error);
+      throw error;
+    }
   };
 
   return (
@@ -118,7 +126,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: currentUser?.role || 'customer',
         isAuthenticated: !!currentUser,
         isLoading,
-        switchRole,
         login,
         register,
         logout,

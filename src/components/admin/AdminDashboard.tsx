@@ -7,7 +7,6 @@ import {
   Plus, 
   TrendingUp, 
   ShieldCheck, 
-  RefreshCw, 
   Trash2, 
   Check, 
   X,
@@ -18,20 +17,30 @@ import {
   MapPin,
   Star
 } from 'lucide-react';
-import { dataService } from '../../services/dataService';
+import { 
+  useBranches, 
+  useStylists, 
+  useServices, 
+  useAppointments, 
+  getNetworkAnalytics,
+  adminService 
+} from '../../services/dataService';
+import { useAuth } from '../../context/AuthContext';
 import { Branch, Stylist, SalonService, NetworkAnalytics, ServiceCategory } from '../../types';
 import { AppCard } from '../common/AppCard';
 import { AppButton } from '../common/AppButton';
 import { AppTextField } from '../common/AppTextField';
 
 export const AdminDashboard: React.FC = () => {
+  const { currentUser, role } = useAuth();
   const [activeTab, setActiveTab] = useState<'analytics' | 'branches' | 'stylists' | 'services'>('analytics');
   
-  // Real-time analytics from data service
-  const analytics: NetworkAnalytics = dataService.getNetworkAnalytics();
-  const branches = dataService.getBranches();
-  const stylists = dataService.getStylists();
-  const services = dataService.getServices();
+  const { branches, loading: loadingBranches } = useBranches();
+  const { stylists, loading: loadingStylists } = useStylists();
+  const { services, loading: loadingServices } = useServices();
+  const { appointments, loading: loadingApts } = useAppointments(currentUser?.uid, role);
+
+  const analytics: NetworkAnalytics = getNetworkAnalytics(appointments, branches, stylists, services);
 
   // Branch creation modal state
   const [showAddBranch, setShowAddBranch] = useState(false);
@@ -56,7 +65,7 @@ export const AdminDashboard: React.FC = () => {
   const [newServiceDesc, setNewServiceDesc] = useState('');
 
   // HANDLERS
-  const handleCreateBranch = (e: React.FormEvent) => {
+  const handleCreateBranch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBranchName || !newBranchAddress) return;
     const newB: Branch = {
@@ -73,16 +82,16 @@ export const AdminDashboard: React.FC = () => {
       description: 'New premium salon outlet equipped with state-of-the-art styling stations.',
       createdAt: new Date().toISOString(),
     };
-    dataService.saveBranch(newB);
+    await adminService.saveBranch(newB);
     setShowAddBranch(false);
     setNewBranchName('');
     setNewBranchAddress('');
   };
 
-  const handleCreateStylist = (e: React.FormEvent) => {
+  const handleCreateStylist = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStylistName || !newStylistBranchId) return;
-    const branch = dataService.getBranchById(newStylistBranchId);
+    const branch = branches.find(b => b.branchId === newStylistBranchId);
     const newS: Stylist = {
       stylistId: `sty_${Date.now()}`,
       name: newStylistName,
@@ -98,13 +107,13 @@ export const AdminDashboard: React.FC = () => {
       active: true,
       createdAt: new Date().toISOString(),
     };
-    dataService.saveStylist(newS);
+    await adminService.saveStylist(newS);
     setShowAddStylist(false);
     setNewStylistName('');
     setNewStylistSpec('');
   };
 
-  const handleCreateService = (e: React.FormEvent) => {
+  const handleCreateService = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newServiceName) return;
     const newSrv: SalonService = {
@@ -118,11 +127,15 @@ export const AdminDashboard: React.FC = () => {
       active: true,
       createdAt: new Date().toISOString(),
     };
-    dataService.saveService(newSrv);
+    await adminService.saveService(newSrv);
     setShowAddService(false);
     setNewServiceName('');
     setNewServiceDesc('');
   };
+
+  if (loadingBranches || loadingStylists || loadingServices || loadingApts) {
+    return <div className="p-8 text-center text-slate-500 animate-pulse">Loading Admin Data...</div>;
+  }
 
   return (
     <div className="space-y-5 pb-10">
@@ -365,7 +378,7 @@ export const AdminDashboard: React.FC = () => {
                     </p>
                   </div>
                   <button
-                    onClick={() => dataService.toggleBranchStatus(b.branchId)}
+                    onClick={() => adminService.toggleBranchStatus(b.branchId, b.active)}
                     className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                       b.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
                     }`}
@@ -462,7 +475,7 @@ export const AdminDashboard: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <h4 className="font-bold text-sm text-slate-900 truncate">{s.name}</h4>
                       <button
-                        onClick={() => dataService.toggleStylistStatus(s.stylistId)}
+                        onClick={() => adminService.toggleStylistStatus(s.stylistId, s.active)}
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                           s.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
                         }`}
@@ -572,7 +585,7 @@ export const AdminDashboard: React.FC = () => {
                     <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{srv.description}</p>
                   </div>
                   <button
-                    onClick={() => dataService.toggleServiceStatus(srv.serviceId)}
+                    onClick={() => adminService.toggleServiceStatus(srv.serviceId, srv.active)}
                     className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                       srv.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
                     }`}

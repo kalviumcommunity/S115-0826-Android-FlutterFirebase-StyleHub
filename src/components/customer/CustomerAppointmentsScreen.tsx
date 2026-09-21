@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, AlertTriangle, Plus, Scissors } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { dataService } from '../../services/dataService';
+import { useAppointments, bookingService } from '../../services/dataService';
 import { Appointment } from '../../types';
 import { AppointmentCard } from '../cards/AppointmentCard';
 import { AppButton } from '../common/AppButton';
@@ -16,12 +16,12 @@ export const CustomerAppointmentsScreen: React.FC<CustomerAppointmentsScreenProp
   onStartBooking,
   onRebook,
 }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, role } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState<'upcoming' | 'past'>('upcoming');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState<string>('');
 
-  const appointments = currentUser ? dataService.getCustomerAppointments(currentUser.uid) : [];
+  const { appointments, loading } = useAppointments(currentUser?.uid, role);
 
   const upcomingAppointments = appointments.filter(
     a => a.status === 'Confirmed' || a.status === 'Pending'
@@ -31,16 +31,23 @@ export const CustomerAppointmentsScreen: React.FC<CustomerAppointmentsScreenProp
     a => a.status === 'Completed' || a.status === 'Cancelled'
   );
 
-  const handleConfirmCancel = () => {
+  const handleConfirmCancel = async () => {
     if (!cancellingId) return;
     try {
-      dataService.cancelAppointment(cancellingId, cancelReason || 'Cancelled by customer');
+      const apt = appointments.find(a => a.appointmentId === cancellingId);
+      if (apt) {
+        await bookingService.cancelAppointment(apt, cancelReason || 'Cancelled by customer');
+      }
       setCancellingId(null);
       setCancelReason('');
     } catch (e) {
       console.error(e);
     }
   };
+
+  if (loading) {
+    return <div className="p-8 text-center text-slate-500 animate-pulse">Loading appointments...</div>;
+  }
 
   return (
     <div className="space-y-4 pb-6">
