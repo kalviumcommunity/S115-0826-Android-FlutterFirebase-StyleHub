@@ -208,6 +208,79 @@ class AppointmentService {
   }
 
   // ---------------------------------------------------------------------------
+  // Reschedule Transaction
+  // ---------------------------------------------------------------------------
+
+  /// Reschedules an appointment by atomically freeing the old slot and
+  /// locking the new slot.
+  ///
+  /// Throws [AppointmentNotFoundException] if the appointment does not exist.
+  /// Throws [InvalidStatusTransitionException] if the appointment is not pending.
+  /// Throws [SlotAlreadyBookedException] if the new slot is already taken.
+  Future<void> rescheduleAppointment({
+    required String appointmentId,
+    required DateTime newScheduledAt,
+  }) async {
+    final appointmentRef =
+        _firestore.collection('appointments').doc(appointmentId);
+
+    await _firestore.runTransaction((transaction) async {
+      final appointmentSnapshot = await transaction.get(appointmentRef);
+
+      if (!appointmentSnapshot.exists) {
+        throw const AppointmentNotFoundException();
+      }
+
+      final data = appointmentSnapshot.data()!;
+      final currentStatus = data['status'] as String;
+
+      // Only pending appointments can be rescheduled per requirements.
+      if (currentStatus != 'pending') {
+        throw const InvalidStatusTransitionException(
+          'Only pending appointments can be rescheduled.',
+        );
+      }
+
+      final stylistId = data['stylistId'] as String;
+      final oldScheduledAt = (data['scheduledAt'] as Timestamp).toDate();
+
+      final oldSlotId = generateSlotId(stylistId, oldScheduledAt);
+      final newSlotId = generateSlotId(stylistId, newScheduledAt);
+
+      final oldSlotRef = _firestore.collection('appointmentSlots').doc(oldSlotId);
+      final newSlotRef = _firestore.collection('appointmentSlots').doc(newSlotId);
+
+      // Check if new slot is available
+      if (oldSlotId != newSlotId) {
+        final newSlotSnapshot = await transaction.get(newSlotRef);
+        if (newSlotSnapshot.exists) {
+          throw const SlotAlreadyBookedException();
+        }
+      }
+
+      // Free old slot
+      if (oldSlotId != newSlotId) {
+        transaction.delete(oldSlotRef);
+
+        // Lock new slot
+        final branchId = data['branchId'] as String;
+        transaction.set(newSlotRef, {
+          'slotId': newSlotId,
+          'appointmentId': appointmentId,
+          'stylistId': stylistId,
+          'branchId': branchId,
+          'scheduledAt': Timestamp.fromDate(newScheduledAt),
+        });
+      }
+
+      // Update appointment
+      transaction.update(appointmentRef, {
+        'scheduledAt': Timestamp.fromDate(newScheduledAt),
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------------------
   // Appointment Completion (TRD §3 — Batch Write)
   // ---------------------------------------------------------------------------
 
@@ -260,5 +333,32 @@ class AppointmentService {
 
     // Commit both operations atomically
     await batch.commit();
+  }
+
+  /// Streams real-time appointment updates for a customer.
+  Stream<List<Map<String, dynamic>>> getCustomerAppointmentsStream(String customerId) {
+    return _firestore
+        .collection('appointments')
+        .where('customerId', isEqualTo: customerId)
+        .orderBy('scheduledAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
+  }
+
+  /// Fetches booked slots for a specific stylist on a specific date.
+  Future<List<DateTime>> getBookedSlots(String stylistId, DateTime date) async {
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    final snapshot = await _firestore
+        .collection('appointmentSlots')
+        .where('stylistId', isEqualTo: stylistId)
+        .where('scheduledAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+        .where('scheduledAt', isLessThan: Timestamp.fromDate(endOfDay))
+        .get();
+
+    return snapshot.docs
+        .map((doc) => (doc.data()['scheduledAt'] as Timestamp).toDate())
+        .toList();
   }
 }

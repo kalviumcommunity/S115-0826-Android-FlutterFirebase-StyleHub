@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/app_exceptions.dart';
+import '../models/appointment_model.dart';
 import '../services/appointment_service.dart';
 
 /// Repository Layer: Orchestrates appointment booking, cancellation, and

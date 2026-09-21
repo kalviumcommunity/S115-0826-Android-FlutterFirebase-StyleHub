@@ -1,4 +1,4 @@
-package com.example.stylehub
+package com.stylehub
 
 import io.flutter.embedding.android.FlutterActivity
 

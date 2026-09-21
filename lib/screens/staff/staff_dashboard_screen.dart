@@ -149,3 +149,15 @@ class _StatCard extends StatelessWidget {
     );
   }
 }
+
+class StaffDashboardStats {
+  final int totalAppointments;
+  final int completedAppointments;
+  final int pendingTasks;
+
+  StaffDashboardStats({
+    required this.totalAppointments,
+    required this.completedAppointments,
+    required this.pendingTasks,
+  });
+}
