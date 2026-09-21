@@ -1,17 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Immutable data model for a service history record in the StyleHub system.
-///
-/// Maps directly to the `serviceHistory/{historyId}` Firestore collection schema
-/// defined in the TRD (§2) and PRD (§8):
-///   `customerId, appointmentId, branchId, branchName, stylistId, stylistName,
-///   completedAt (Timestamp)`
-///
-/// Design decisions:
-/// - [id] is the Firestore document ID (historyId).
-/// - [completedAt] is a server timestamp indicating when the service was completed.
-/// - Explicit [fromMap] and [toMap] methods guarantee clean Firestore
-///   serialization and unit testability without mocking Firebase.
 class ServiceHistoryModel {
   final String id;
   final String customerId;
@@ -20,6 +8,10 @@ class ServiceHistoryModel {
   final String branchName;
   final String stylistId;
   final String stylistName;
+  final String serviceId;
+  final String serviceName;
+  final double price;
+  final String notes;
   final DateTime completedAt;
 
   const ServiceHistoryModel({
@@ -27,20 +19,22 @@ class ServiceHistoryModel {
     required this.customerId,
     required this.appointmentId,
     required this.branchId,
-    required this.branchName,
+    this.branchName = '',
     required this.stylistId,
-    required this.stylistName,
+    this.stylistName = '',
+    required this.serviceId,
+    this.serviceName = '',
+    this.price = 0.0,
+    this.notes = '',
     required this.completedAt,
   });
 
-  /// Creates a [ServiceHistoryModel] from a Firestore document snapshot.
   factory ServiceHistoryModel.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
     return ServiceHistoryModel.fromMap(doc.data()!, doc.id);
   }
 
-  /// Creates a [ServiceHistoryModel] from a raw Map and a document ID.
   factory ServiceHistoryModel.fromMap(Map<String, dynamic> map, String documentId) {
     return ServiceHistoryModel(
       id: documentId,
@@ -50,12 +44,14 @@ class ServiceHistoryModel {
       branchName: map['branchName'] as String? ?? '',
       stylistId: map['stylistId'] as String? ?? '',
       stylistName: map['stylistName'] as String? ?? '',
-      completedAt: (map['completedAt'] as Timestamp?)?.toDate() ??
-          DateTime(1970),
+      serviceId: map['serviceId'] as String? ?? '',
+      serviceName: map['serviceName'] as String? ?? '',
+      price: (map['price'] as num?)?.toDouble() ?? 0.0,
+      notes: map['notes'] as String? ?? '',
+      completedAt: (map['completedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
-  /// Converts this model to a Map for clean Firestore serialization.
   Map<String, dynamic> toMap() {
     return {
       'customerId': customerId,
@@ -64,14 +60,16 @@ class ServiceHistoryModel {
       'branchName': branchName,
       'stylistId': stylistId,
       'stylistName': stylistName,
+      'serviceId': serviceId,
+      'serviceName': serviceName,
+      'price': price,
+      'notes': notes,
       'completedAt': Timestamp.fromDate(completedAt),
     };
   }
 
-  /// Alias for [toMap] for Firestore write compatibility.
   Map<String, dynamic> toFirestore() => toMap();
 
-  /// Creates a copy of this model with the given fields replaced.
   ServiceHistoryModel copyWith({
     String? customerId,
     String? appointmentId,
@@ -79,6 +77,10 @@ class ServiceHistoryModel {
     String? branchName,
     String? stylistId,
     String? stylistName,
+    String? serviceId,
+    String? serviceName,
+    double? price,
+    String? notes,
     DateTime? completedAt,
   }) {
     return ServiceHistoryModel(
@@ -89,13 +91,16 @@ class ServiceHistoryModel {
       branchName: branchName ?? this.branchName,
       stylistId: stylistId ?? this.stylistId,
       stylistName: stylistName ?? this.stylistName,
+      serviceId: serviceId ?? this.serviceId,
+      serviceName: serviceName ?? this.serviceName,
+      price: price ?? this.price,
+      notes: notes ?? this.notes,
       completedAt: completedAt ?? this.completedAt,
     );
   }
 
   @override
-  String toString() =>
-      'ServiceHistoryModel(id: $id, customerId: $customerId, completedAt: $completedAt)';
+  String toString() => 'ServiceHistoryModel(id: $id, customerId: $customerId, serviceId: $serviceId, completedAt: $completedAt)';
 
   @override
   bool operator ==(Object other) =>
@@ -109,6 +114,10 @@ class ServiceHistoryModel {
           branchName == other.branchName &&
           stylistId == other.stylistId &&
           stylistName == other.stylistName &&
+          serviceId == other.serviceId &&
+          serviceName == other.serviceName &&
+          price == other.price &&
+          notes == other.notes &&
           completedAt == other.completedAt;
 
   @override
@@ -120,6 +129,10 @@ class ServiceHistoryModel {
         branchName,
         stylistId,
         stylistName,
+        serviceId,
+        serviceName,
+        price,
+        notes,
         completedAt,
       );
 }

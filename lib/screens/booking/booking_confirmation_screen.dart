@@ -9,168 +9,110 @@ import '../../providers/auth_provider.dart';
 import '../../providers/booking_provider.dart';
 
 class BookingConfirmationScreen extends StatelessWidget {
-  final bool isRescheduling;
-  final String? existingAppointmentId;
-
-  const BookingConfirmationScreen({
-    super.key,
-    this.isRescheduling = false,
-    this.existingAppointmentId,
-  });
+  const BookingConfirmationScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<BookingProvider>(
-      builder: (context, provider, child) {
-        final branch = provider.selectedBranch;
-        final service = provider.selectedService;
-        final stylist = provider.selectedStylist;
-        final date = provider.selectedDate;
-        final time = provider.selectedTime;
-
-        if (branch == null || service == null || stylist == null || date == null || time == null) {
-          return const Scaffold(body: Center(child: Text('Missing booking data.')));
-        }
-
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(isRescheduling ? 'Confirm Reschedule' : 'Confirm Booking'),
-          ),
-          body: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(AppSpacing.m),
-                  child: AppCard(
-                    padding: const EdgeInsets.all(AppSpacing.l),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Booking Summary',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        const Divider(height: 32),
-                        _buildSummaryRow(context, Icons.store, 'Branch', branch.name),
-                        const SizedBox(height: AppSpacing.m),
-                        _buildSummaryRow(context, Icons.content_cut, 'Service', service.name),
-                        const SizedBox(height: AppSpacing.m),
-                        _buildSummaryRow(context, Icons.person, 'Stylist', stylist.name),
-                        const SizedBox(height: AppSpacing.m),
-                        _buildSummaryRow(context, Icons.calendar_today, 'Date', DateFormat('MMMM d, yyyy').format(date)),
-                        const SizedBox(height: AppSpacing.m),
-                        _buildSummaryRow(context, Icons.access_time, 'Time', DateFormat.jm().format(time)),
-                        const Divider(height: 32),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Total Price',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            Text(
-                              '\$${service.price.toStringAsFixed(0)}',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              if (provider.errorMessage != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
-                  child: Text(
-                    provider.errorMessage!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.l),
-                child: AppButton(
-                  text: isRescheduling ? 'Confirm Reschedule' : 'Confirm Booking',
-                  onPressed: () => _onConfirm(context, provider),
-                  isLoading: provider.isLoading,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildSummaryRow(BuildContext context, IconData icon, String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: AppColors.textSecondary, size: 20),
-        const SizedBox(width: AppSpacing.s),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-              ),
-              Text(
-                value,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _onConfirm(BuildContext context, BookingProvider provider) async {
+    final bookingProvider = context.watch<BookingProvider>();
     final authProvider = context.read<AuthProvider>();
-    final user = authProvider.currentUser;
     
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: User not authenticated')),
-      );
-      return;
-    }
+    final branch = bookingProvider.selectedBranch;
+    final service = bookingProvider.selectedService;
+    final stylist = bookingProvider.selectedStylist;
+    final date = bookingProvider.selectedDate;
+    final timeSlot = bookingProvider.selectedTimeSlot;
 
-    if (isRescheduling && existingAppointmentId != null) {
-      await provider.rescheduleAppointment(
-        appointmentId: existingAppointmentId!,
-        newScheduledAt: provider.selectedTime!,
-      );
-    } else {
-      await provider.bookAppointment(
-        customerId: user.uid,
-        customerName: user.name,
-        branchId: provider.selectedBranch!.id,
-        stylistId: provider.selectedStylist!.id,
-        serviceId: provider.selectedService!.id,
-        scheduledAt: provider.selectedTime!,
-      );
-    }
+    return Scaffold(
+      appBar: AppBar(title: const Text('Confirm Booking')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.m),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Booking Summary',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    )),
+            const SizedBox(height: AppSpacing.m),
+            AppCard(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.m),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildRow(context, 'Branch', branch?.name ?? '-'),
+                    const Divider(),
+                    _buildRow(context, 'Service', service?.name ?? '-'),
+                    const Divider(),
+                    _buildRow(context, 'Stylist', stylist?.name ?? '-'),
+                    const Divider(),
+                    _buildRow(context, 'Date',
+                        date != null ? DateFormat('EEEE, MMM dd, yyyy').format(date) : '-'),
+                    const Divider(),
+                    _buildRow(context, 'Time', timeSlot ?? '-'),
+                    const Divider(),
+                    _buildRow(context, 'Duration',
+                        service != null ? '${service.durationMinutes} minutes' : '-'),
+                    const Divider(),
+                    _buildRow(context, 'Price',
+                        service != null ? '₹${service.price.toStringAsFixed(0)}' : '-',
+                        isBold: true),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            if (bookingProvider.errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.m),
+                child: Text(bookingProvider.errorMessage!,
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center),
+              ),
+            AppButton(
+              text: 'Confirm Booking',
+              isLoading: bookingProvider.isLoading,
+              onPressed: () async {
+                final user = authProvider.currentUser;
+                if (user != null) {
+                  bookingProvider.setCustomerInfo(user.uid, user.name);
+                  await bookingProvider.bookAppointment();
+                  
+                  if (bookingProvider.isSuccess && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Appointment booked successfully!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                    // Pop back to the branch list
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                    bookingProvider.resetState();
+                  }
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-    if (provider.isSuccess && context.mounted) {
-      provider.clearBookingState();
-      
-      // Navigate to Customer Home Screen on Appointments tab
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        '/customer-main',
-        (route) => false,
-      );
-    }
+  Widget _buildRow(BuildContext context, String label, String value, {bool isBold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textSecondary,
+              )),
+          Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                fontSize: isBold ? 18 : null,
+              )),
+        ],
+      ),
+    );
   }
 }

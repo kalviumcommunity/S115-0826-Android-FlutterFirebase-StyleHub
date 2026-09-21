@@ -1,83 +1,71 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
-
+import '../core/app_exceptions.dart';
 import '../models/staff_dashboard_model.dart';
 import '../models/user_model.dart';
 import '../repositories/staff_repository.dart';
 import '../services/operations_service.dart';
 
 class StaffDashboardProvider extends ChangeNotifier {
-  final StaffRepository _repository;
+  final StaffRepository _staffRepository;
+  final OperationsService _operationsService;
 
-  StaffDashboardProvider({required StaffRepository repository})
-    : _repository = repository;
-
-  StreamSubscription<List<UserModel>>? _customerSubscription;
-  StreamSubscription<StaffDashboardStats>? _statsSubscription;
-  List<UserModel> _customers = const [];
   StaffDashboardStats? _stats;
-  bool _isLoading = true;
-  String? _errorMessage;
-  String _query = '';
+  bool _isLoading = false;
+  String? _error;
+  StreamSubscription? _statsSub;
 
-  List<UserModel> get customers => _customers;
   StaffDashboardStats? get stats => _stats;
   bool get isLoading => _isLoading;
-  String? get errorMessage => _errorMessage;
-  bool get isEmpty =>
-      !_isLoading && _errorMessage == null && _customers.isEmpty;
+  String? get error => _error;
 
-  void initialize(String? branchId) {
-    if (_customerSubscription != null) {
-      return;
-    }
-    _errorMessage = null;
-    _customerSubscription = _repository.searchCustomers(_query).listen((
-      customers,
-    ) {
-      _customers = customers;
-      _isLoading = false;
-      notifyListeners();
-    }, onError: (_) => _setError('Unable to load customers.'));
-    if (branchId != null && branchId.isNotEmpty) {
-      _statsSubscription = _repository.watchDashboardStats(branchId).listen((
-        stats,
-      ) {
-        _stats = stats;
-        notifyListeners();
-      }, onError: (_) => _setError('Unable to load branch appointments.'));
-    }
-  }
+  StaffDashboardProvider({
+    required StaffRepository staffRepository,
+    required OperationsService operationsService,
+  })  : _staffRepository = staffRepository,
+        _operationsService = operationsService;
 
-  void updateSearch(String query) {
-    _query = query;
-    _customerSubscription?.cancel();
+  void initialize(String branchId) {
     _isLoading = true;
+    _error = null;
     notifyListeners();
-    _customerSubscription = _repository.searchCustomers(query).listen((
-      customers,
-    ) {
-      _customers = customers;
-      _isLoading = false;
-      notifyListeners();
-    }, onError: (_) => _setError('Unable to search customers.'));
+
+    _statsSub?.cancel();
+    _statsSub = _staffRepository.watchDashboardStats(branchId).listen(
+      (stats) {
+        _stats = stats;
+        _isLoading = false;
+        notifyListeners();
+      },
+      onError: (e) {
+        _error = 'Failed to load dashboard stats';
+        _isLoading = false;
+        notifyListeners();
+      },
+    );
   }
 
-  Future<CustomerInsight> loadCustomerInsight(String customerId) {
-    return _repository.getCustomerInsight(customerId);
+  Future<List<Map<String, dynamic>>> searchCustomers(String query) async {
+    try {
+      return await _staffRepository.searchCustomers(query);
+    } on AppException {
+      rethrow;
+    } catch (e) {
+      throw FirestoreException('Search failed: $e');
+    }
   }
 
-  void _setError(String message) {
-    _errorMessage = message;
-    _isLoading = false;
-    notifyListeners();
+  Future<CustomerInsight> loadCustomerInsight(String customerId) async {
+    try {
+      return await _operationsService.getCustomerInsight(customerId);
+    } catch (e) {
+      throw FirestoreException('Failed to load customer insight: $e');
+    }
   }
 
   @override
   void dispose() {
-    _customerSubscription?.cancel();
-    _statsSubscription?.cancel();
+    _statsSub?.cancel();
     super.dispose();
   }
 }

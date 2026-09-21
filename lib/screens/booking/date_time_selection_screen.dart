@@ -4,18 +4,13 @@ import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_constants.dart';
 import '../../core/widgets/app_button.dart';
+import '../../core/widgets/app_card.dart';
+import '../../models/stylist_model.dart';
 import '../../providers/booking_provider.dart';
 import 'booking_confirmation_screen.dart';
 
 class DateTimeSelectionScreen extends StatefulWidget {
-  final bool isRescheduling;
-  final String? existingAppointmentId;
-
-  const DateTimeSelectionScreen({
-    super.key, 
-    this.isRescheduling = false,
-    this.existingAppointmentId,
-  });
+  const DateTimeSelectionScreen({super.key});
 
   @override
   State<DateTimeSelectionScreen> createState() => _DateTimeSelectionScreenState();
@@ -23,230 +18,144 @@ class DateTimeSelectionScreen extends StatefulWidget {
 
 class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
   DateTime _selectedDate = DateTime.now();
-  DateTime? _selectedTime;
-  
-  // Available slots for the day (e.g., 9 AM to 5 PM every 30 mins)
-  final List<TimeOfDay> _allSlots = List.generate(
-    17, 
-    (index) => TimeOfDay(hour: 9 + (index ~/ 2), minute: (index % 2) * 30),
-  );
+  String? _selectedTimeSlot;
+
+  List<String> _generateSlots(StylistModel stylist) {
+    final slots = <String>[];
+    final startParts = stylist.startTime.split(':');
+    final endParts = stylist.endTime.split(':');
+    final breakStartParts = stylist.breakStart.split(':');
+    final breakEndParts = stylist.breakEnd.split(':');
+
+    int startHour = int.tryParse(startParts[0]) ?? 9;
+    int startMinute = int.tryParse(startParts.length > 1 ? startParts[1] : '0') ?? 0;
+    int endHour = int.tryParse(endParts[0]) ?? 18;
+    int endMinute = int.tryParse(endParts.length > 1 ? endParts[1] : '0') ?? 0;
+    int breakStartHour = int.tryParse(breakStartParts[0]) ?? 13;
+    int breakStartMinute = int.tryParse(breakStartParts.length > 1 ? breakStartParts[1] : '0') ?? 0;
+    int breakEndHour = int.tryParse(breakEndParts[0]) ?? 14;
+    int breakEndMinute = int.tryParse(breakEndParts.length > 1 ? breakEndParts[1] : '0') ?? 0;
+
+    int currentMinutes = startHour * 60 + startMinute;
+    final endMinutes = endHour * 60 + endMinute;
+    final breakStartMinutes = breakStartHour * 60 + breakStartMinute;
+    final breakEndMinutes = breakEndHour * 60 + breakEndMinute;
+
+    while (currentMinutes < endMinutes) {
+      // Skip break time
+      if (currentMinutes >= breakStartMinutes && currentMinutes < breakEndMinutes) {
+        currentMinutes += 30;
+        continue;
+      }
+      final hour = currentMinutes ~/ 60;
+      final minute = currentMinutes % 60;
+      slots.add('${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}');
+      currentMinutes += 30;
+    }
+    return slots;
+  }
+
+  bool _isWorkingDay(StylistModel stylist, DateTime date) {
+    final dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    final dayName = dayNames[date.weekday - 1];
+    return stylist.workingDays.isEmpty || stylist.workingDays.contains(dayName);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final bookingProvider = context.read<BookingProvider>();
+    final bookingProvider = context.watch<BookingProvider>();
     final stylist = bookingProvider.selectedStylist;
-    
-    if (stylist == null) {
-      return const Scaffold(body: Center(child: Text('Error: No Stylist Selected')));
-    }
-
-    // Start of the day and end of the day for the Firestore query
-    final startOfDay = DateTime(
-      _selectedDate.year, 
-      _selectedDate.month, 
-      _selectedDate.day,
-    );
-    final endOfDay = startOfDay.add(const Duration(days: 1));
+    final isWorkingDay = stylist != null && _isWorkingDay(stylist, _selectedDate);
+    final slots = stylist != null && isWorkingDay ? _generateSlots(stylist) : <String>[];
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Select Date & Time'),
-      ),
+      appBar: AppBar(title: const Text('Select Date & Time')),
       body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildDateSelector(),
+          // Date picker
+          CalendarDatePicker(
+            initialDate: _selectedDate,
+            firstDate: DateTime.now(),
+            lastDate: DateTime.now().add(const Duration(days: 90)),
+            onDateChanged: (date) {
+              setState(() {
+                _selectedDate = date;
+                _selectedTimeSlot = null;
+              });
+            },
+          ),
           const Divider(),
-          Expanded(
-            child: FutureBuilder<List<DateTime>>(
-              future: bookingProvider.getBookedSlots(stylist.id, _selectedDate),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snapshot.hasError) {
-                  return const Center(child: Text('Failed to load available slots.'));
-                }
-
-                // Extract booked times
-                final bookedTimes = <String>{};
-                for (var scheduledAt in snapshot.data ?? <DateTime>[]) {
-                  bookedTimes.add('${scheduledAt.hour}:${scheduledAt.minute}');
-                }
-
-                return _buildTimeSlots(bookedTimes);
-              },
-            ),
-          ),
           Padding(
-            padding: const EdgeInsets.all(AppSpacing.l),
-            child: AppButton(
-              text: widget.isRescheduling ? 'Review Reschedule' : 'Continue',
-              onPressed: _selectedTime != null ? _onContinue : null,
-              isLoading: false,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+            child: Text(
+              isWorkingDay
+                  ? 'Available Time Slots'
+                  : 'Stylist does not work on this day',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDateSelector() {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.m),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Selected Date',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
           ),
           const SizedBox(height: AppSpacing.s),
-          InkWell(
-            onTap: _pickDate,
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                vertical: AppSpacing.m,
-                horizontal: AppSpacing.s,
-              ),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey[300]!),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.calendar_today, color: AppColors.primary),
-                  const SizedBox(width: AppSpacing.m),
-                  Text(
-                    DateFormat('EEEE, MMMM d, yyyy').format(_selectedDate),
-                    style: Theme.of(context).textTheme.bodyLarge,
+          Expanded(
+            child: isWorkingDay && slots.isNotEmpty
+                ? GridView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 4,
+                      childAspectRatio: 2.2,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                    ),
+                    itemCount: slots.length,
+                    itemBuilder: (context, index) {
+                      final slot = slots[index];
+                      final isSelected = _selectedTimeSlot == slot;
+                      return GestureDetector(
+                        onTap: () => setState(() => _selectedTimeSlot = slot),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: isSelected ? AppColors.primary : AppColors.surfaceVariant,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            slot,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : AppColors.textPrimary,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  )
+                : Center(
+                    child: Text(
+                      isWorkingDay ? 'No slots available' : 'Please select a working day',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
                   ),
-                ],
-              ),
-            ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildTimeSlots(Set<String> bookedTimes) {
-    // Filter slots based on current time if the selected date is today
-    final now = DateTime.now();
-    final isToday = _selectedDate.year == now.year &&
-        _selectedDate.month == now.month &&
-        _selectedDate.day == now.day;
-
-    final availableSlots = _allSlots.where((slot) {
-      if (isToday) {
-        if (slot.hour < now.hour || (slot.hour == now.hour && slot.minute <= now.minute)) {
-          return false;
-        }
-      }
-      return !bookedTimes.contains('${slot.hour}:${slot.minute}');
-    }).toList();
-
-    if (availableSlots.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.event_busy, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              'No slots available on this date.',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.grey[600],
-                  ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return GridView.builder(
-      padding: const EdgeInsets.all(AppSpacing.m),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        childAspectRatio: 2.5,
-        crossAxisSpacing: AppSpacing.s,
-        mainAxisSpacing: AppSpacing.s,
-      ),
-      itemCount: availableSlots.length,
-      itemBuilder: (context, index) {
-        final slot = availableSlots[index];
-        final slotDateTime = DateTime(
-          _selectedDate.year,
-          _selectedDate.month,
-          _selectedDate.day,
-          slot.hour,
-          slot.minute,
-        );
-        
-        final isSelected = _selectedTime?.isAtSameMomentAs(slotDateTime) ?? false;
-
-        return InkWell(
-          onTap: () {
-            setState(() {
-              _selectedTime = slotDateTime;
-            });
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(AppSpacing.m),
+        child: AppButton(
+          text: 'Continue',
+          isDisabled: _selectedTimeSlot == null,
+          onPressed: () {
+            if (_selectedTimeSlot != null) {
+              bookingProvider.selectDate(_selectedDate);
+              bookingProvider.selectTimeSlot(_selectedTimeSlot!);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const BookingConfirmationScreen()),
+              );
+            }
           },
-          child: Container(
-            decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary : Colors.white,
-              border: Border.all(
-                color: isSelected ? AppColors.primary : Colors.grey[300]!,
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              DateFormat.jm().format(slotDateTime),
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.black87,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _pickDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate.isBefore(now) ? now : _selectedDate,
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 30)),
-    );
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-        _selectedTime = null; // Reset time on date change
-      });
-    }
-  }
-
-  void _onContinue() {
-    if (_selectedTime != null) {
-      final bookingProvider = context.read<BookingProvider>();
-      bookingProvider.setDate(_selectedDate);
-      bookingProvider.setTime(_selectedTime!);
-      
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => BookingConfirmationScreen(
-            isRescheduling: widget.isRescheduling,
-            existingAppointmentId: widget.existingAppointmentId,
-          ),
         ),
-      );
-    }
+      ),
+    );
   }
 }

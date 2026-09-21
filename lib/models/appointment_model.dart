@@ -1,17 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Immutable data model for an appointment in the StyleHub system.
-///
-/// Maps directly to the `appointments/{appointmentId}` Firestore collection schema
-/// defined in the TRD (§2) and PRD (§8):
-///   `customerId, customerName, branchId, branchName, stylistId, stylistName,
-///   serviceId, serviceName, scheduledAt (Timestamp), status`
-///
-/// Design decisions:
-/// - [id] is the Firestore document ID (appointmentId).
-/// - [status] is one of: 'pending', 'confirmed', 'completed', 'cancelled', 'no_show'.
-/// - Explicit [fromMap] and [toMap] methods guarantee clean Firestore
-///   serialization and unit testability without mocking Firebase.
 class AppointmentModel {
   final String id;
   final String customerId;
@@ -22,31 +10,37 @@ class AppointmentModel {
   final String stylistName;
   final String serviceId;
   final String serviceName;
-  final DateTime scheduledAt;
   final String status;
+  final DateTime scheduledAt;
+  final double price;
+  final String notes;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const AppointmentModel({
     required this.id,
     required this.customerId,
     required this.customerName,
     required this.branchId,
-    required this.branchName,
+    this.branchName = '',
     required this.stylistId,
-    required this.stylistName,
+    this.stylistName = '',
     required this.serviceId,
-    required this.serviceName,
-    required this.scheduledAt,
+    this.serviceName = '',
     required this.status,
+    required this.scheduledAt,
+    this.price = 0.0,
+    this.notes = '',
+    this.createdAt,
+    this.updatedAt,
   });
 
-  /// Creates an [AppointmentModel] from a Firestore document snapshot.
   factory AppointmentModel.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
     return AppointmentModel.fromMap(doc.data()!, doc.id);
   }
 
-  /// Creates an [AppointmentModel] from a raw Map and a document ID.
   factory AppointmentModel.fromMap(Map<String, dynamic> map, String documentId) {
     return AppointmentModel(
       id: documentId,
@@ -58,15 +52,17 @@ class AppointmentModel {
       stylistName: map['stylistName'] as String? ?? '',
       serviceId: map['serviceId'] as String? ?? '',
       serviceName: map['serviceName'] as String? ?? '',
-      scheduledAt: (map['scheduledAt'] as Timestamp?)?.toDate() ??
-          DateTime(1970),
-      status: map['status'] as String? ?? 'pending',
+      status: map['status'] as String? ?? '',
+      scheduledAt: (map['scheduledAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      price: (map['price'] as num?)?.toDouble() ?? 0.0,
+      notes: map['notes'] as String? ?? '',
+      createdAt: (map['createdAt'] as Timestamp?)?.toDate(),
+      updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
     );
   }
 
-  /// Converts this model to a Map for clean Firestore serialization.
   Map<String, dynamic> toMap() {
-    return {
+    final map = <String, dynamic>{
       'customerId': customerId,
       'customerName': customerName,
       'branchId': branchId,
@@ -75,15 +71,24 @@ class AppointmentModel {
       'stylistName': stylistName,
       'serviceId': serviceId,
       'serviceName': serviceName,
-      'scheduledAt': Timestamp.fromDate(scheduledAt),
       'status': status,
+      'scheduledAt': Timestamp.fromDate(scheduledAt),
+      'price': price,
+      'notes': notes,
     };
+    
+    if (createdAt != null) {
+      map['createdAt'] = Timestamp.fromDate(createdAt!);
+    }
+    if (updatedAt != null) {
+      map['updatedAt'] = Timestamp.fromDate(updatedAt!);
+    }
+    
+    return map;
   }
 
-  /// Alias for [toMap] for Firestore write compatibility.
   Map<String, dynamic> toFirestore() => toMap();
 
-  /// Creates a copy of this model with the given fields replaced.
   AppointmentModel copyWith({
     String? customerId,
     String? customerName,
@@ -93,8 +98,12 @@ class AppointmentModel {
     String? stylistName,
     String? serviceId,
     String? serviceName,
-    DateTime? scheduledAt,
     String? status,
+    DateTime? scheduledAt,
+    double? price,
+    String? notes,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) {
     return AppointmentModel(
       id: id,
@@ -106,14 +115,17 @@ class AppointmentModel {
       stylistName: stylistName ?? this.stylistName,
       serviceId: serviceId ?? this.serviceId,
       serviceName: serviceName ?? this.serviceName,
-      scheduledAt: scheduledAt ?? this.scheduledAt,
       status: status ?? this.status,
+      scheduledAt: scheduledAt ?? this.scheduledAt,
+      price: price ?? this.price,
+      notes: notes ?? this.notes,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
   @override
-  String toString() =>
-      'AppointmentModel(id: $id, customerName: $customerName, status: $status)';
+  String toString() => 'AppointmentModel(id: $id, customerId: $customerId, serviceId: $serviceId, status: $status, scheduledAt: $scheduledAt)';
 
   @override
   bool operator ==(Object other) =>
@@ -129,8 +141,12 @@ class AppointmentModel {
           stylistName == other.stylistName &&
           serviceId == other.serviceId &&
           serviceName == other.serviceName &&
+          status == other.status &&
           scheduledAt == other.scheduledAt &&
-          status == other.status;
+          price == other.price &&
+          notes == other.notes &&
+          createdAt == other.createdAt &&
+          updatedAt == other.updatedAt;
 
   @override
   int get hashCode => Object.hash(
@@ -143,7 +159,11 @@ class AppointmentModel {
         stylistName,
         serviceId,
         serviceName,
-        scheduledAt,
         status,
+        scheduledAt,
+        price,
+        notes,
+        createdAt,
+        updatedAt,
       );
 }

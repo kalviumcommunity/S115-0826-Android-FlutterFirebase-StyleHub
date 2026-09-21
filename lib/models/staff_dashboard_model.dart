@@ -1,29 +1,31 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+class PopularService {
+  final String serviceId;
+  final String name;
+  final int count;
+  const PopularService({required this.serviceId, required this.name, required this.count});
+}
+
+class TopStylist {
+  final String stylistId;
+  final String name;
+  final int appointmentCount;
+  const TopStylist({required this.stylistId, required this.name, required this.appointmentCount});
+}
+
 class StaffDashboardStats {
   final int todayAppointments;
   final int pendingAppointments;
-
+  final int completedAppointments;
+  final List<PopularService> popularServices;
+  final List<TopStylist> topStylists;
+  
   const StaffDashboardStats({
-    required this.todayAppointments,
-    required this.pendingAppointments,
+    this.todayAppointments = 0,
+    this.pendingAppointments = 0,
+    this.completedAppointments = 0,
+    this.popularServices = const [],
+    this.topStylists = const [],
   });
-}
-
-class AppointmentSummary {
-  final String status;
-  final DateTime scheduledAt;
-
-  const AppointmentSummary({required this.status, required this.scheduledAt});
-
-  factory AppointmentSummary.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> document,
-  ) {
-    final data = document.data() ?? <String, dynamic>{};
-    final timestamp = data['scheduledAt'];
-    return AppointmentSummary(
-      status: data['status'] as String? ?? '',
-      scheduledAt: timestamp is Timestamp ? timestamp.toDate() : DateTime(1970),
-    );
-  }
 }

@@ -1,16 +1,34 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import '../repositories/branch_repository.dart';
-import '../repositories/service_repository.dart';
-import '../repositories/stylist_repository.dart';
+import '../core/app_exceptions.dart';
 import '../models/branch_model.dart';
-import '../models/service_model.dart';
 import '../models/stylist_model.dart';
+import '../models/service_model.dart';
+import '../repositories/branch_repository.dart';
+import '../repositories/stylist_repository.dart';
+import '../repositories/service_repository.dart';
+import 'dart:async';
 
-/// Provider Layer: Manages reference data (branches, stylists, services) for UI selection.
 class ReferenceDataProvider extends ChangeNotifier {
   final BranchRepository _branchRepository;
   final StylistRepository _stylistRepository;
   final ServiceRepository _serviceRepository;
+
+  List<BranchModel> _branches = [];
+  List<StylistModel> _stylists = [];
+  List<ServiceModel> _services = [];
+  bool _isLoading = true;
+  String? _error;
+
+  StreamSubscription? _branchSub;
+  StreamSubscription? _stylistSub;
+  StreamSubscription? _serviceSub;
+
+  List<BranchModel> get branches => _branches;
+  List<StylistModel> get stylists => _stylists;
+  List<ServiceModel> get services => _services;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
 
   ReferenceDataProvider({
     required BranchRepository branchRepository,
@@ -20,93 +38,87 @@ class ReferenceDataProvider extends ChangeNotifier {
         _stylistRepository = stylistRepository,
         _serviceRepository = serviceRepository;
 
-  // Branches
-  List<BranchModel> _branches = const [];
-  List<BranchModel> get branches => _branches;
-  bool _branchesLoading = false;
-  bool get branchesLoading => _branchesLoading;
-  String? _branchesError;
-  String? get branchesError => _branchesError;
+  void initialize() {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
 
-  // Stylists
-  List<StylistModel> _stylists = const [];
-  List<StylistModel> get stylists => _stylists;
-  bool _stylistsLoading = false;
-  bool get stylistsLoading => _stylistsLoading;
-  String? _stylistsError;
-  String? get stylistsError => _stylistsError;
+    _branchSub = _branchRepository.watchAllBranches().listen((snapshot) {
+      _branches = snapshot.docs
+          .map((doc) => BranchModel.fromFirestore(doc))
+          .toList();
+      _checkLoadingComplete();
+    }, onError: (e) { _error = 'Failed to load branches'; _isLoading = false; notifyListeners(); });
 
-  // Services
-  List<ServiceModel> _services = const [];
-  List<ServiceModel> get services => _services;
-  bool _servicesLoading = false;
-  bool get servicesLoading => _servicesLoading;
-  String? _servicesError;
-  String? get servicesError => _servicesError;
+    _stylistSub = _stylistRepository.watchAllStylists().listen((snapshot) {
+      _stylists = snapshot.docs
+          .map((doc) => StylistModel.fromFirestore(doc))
+          .toList();
+      _checkLoadingComplete();
+    }, onError: (e) { _error = 'Failed to load stylists'; _isLoading = false; notifyListeners(); });
 
-  Future<void> initialize() async {
-    await _loadBranches();
-    await _loadStylists();
-    await _loadServices();
+    _serviceSub = _serviceRepository.watchAllServices().listen((snapshot) {
+      _services = snapshot.docs
+          .map((doc) => ServiceModel.fromFirestore(doc))
+          .toList();
+      _checkLoadingComplete();
+    }, onError: (e) { _error = 'Failed to load services'; _isLoading = false; notifyListeners(); });
   }
 
-  Future<void> _loadBranches() async {
-    _branchesLoading = true;
-    _branchesError = null;
-    notifyListeners();
-    try {
-      final data = await _branchRepository.getAllBranches();
-      // Ensure data is cast to BranchModel.
-      // If the repo returns Map, we'd use BranchModel.fromMap(data) here.
-      _branches = data.cast<BranchModel>();
-    } catch (e) {
-      _branchesError = e.toString();
-    } finally {
-      _branchesLoading = false;
-      notifyListeners();
+  void _checkLoadingComplete() {
+    if (_branches.isNotEmpty || _stylists.isNotEmpty || _services.isNotEmpty) {
+      _isLoading = false;
     }
+    // After first data arrives, mark loading as done
+    _isLoading = false;
+    notifyListeners();
   }
 
-  Future<void> _loadStylists() async {
-    _stylistsLoading = true;
-    _stylistsError = null;
-    notifyListeners();
-    try {
-      final data = await _stylistRepository.getAllStylists();
-      _stylists = data.cast<StylistModel>();
-    } catch (e) {
-      _stylistsError = e.toString();
-    } finally {
-      _stylistsLoading = false;
-      notifyListeners();
-    }
+  // CRUD pass-through methods
+  Future<void> createBranch(Map<String, dynamic> data) async {
+    try { await _branchRepository.createBranch(data); }
+    on AppException { rethrow; } catch (e) { throw FirestoreException('Failed to create branch'); }
+  }
+  Future<void> updateBranch(String id, Map<String, dynamic> data) async {
+    try { await _branchRepository.updateBranch(id, data); }
+    on AppException { rethrow; } catch (e) { throw FirestoreException('Failed to update branch'); }
+  }
+  Future<void> deleteBranch(String id) async {
+    try { await _branchRepository.deleteBranch(id); }
+    on AppException { rethrow; } catch (e) { throw FirestoreException('Failed to delete branch'); }
   }
 
-  Future<void> _loadServices() async {
-    _servicesLoading = true;
-    _servicesError = null;
-    notifyListeners();
-    try {
-      final data = await _serviceRepository.getAllServices();
-      _services = data.cast<ServiceModel>();
-    } catch (e) {
-      _servicesError = e.toString();
-    } finally {
-      _servicesLoading = false;
-      notifyListeners();
-    }
+  Future<void> createStylist(Map<String, dynamic> data) async {
+    try { await _stylistRepository.createStylist(data); }
+    on AppException { rethrow; } catch (e) { throw FirestoreException('Failed to create stylist'); }
+  }
+  Future<void> updateStylist(String id, Map<String, dynamic> data) async {
+    try { await _stylistRepository.updateStylist(id, data); }
+    on AppException { rethrow; } catch (e) { throw FirestoreException('Failed to update stylist'); }
+  }
+  Future<void> deleteStylist(String id) async {
+    try { await _stylistRepository.deleteStylist(id); }
+    on AppException { rethrow; } catch (e) { throw FirestoreException('Failed to delete stylist'); }
   }
 
-  void clear() {
-    _branches = const [];
-    _stylists = const [];
-    _services = const [];
-    _branchesLoading = false;
-    _stylistsLoading = false;
-    _servicesLoading = false;
-    _branchesError = null;
-    _stylistsError = null;
-    _servicesError = null;
-    notifyListeners();
+  Future<void> createService(Map<String, dynamic> data) async {
+    try { await _serviceRepository.createService(data); }
+    on AppException { rethrow; } catch (e) { throw FirestoreException('Failed to create service'); }
+  }
+  Future<void> updateService(String id, Map<String, dynamic> data) async {
+    try { await _serviceRepository.updateService(id, data); }
+    on AppException { rethrow; } catch (e) { throw FirestoreException('Failed to update service'); }
+  }
+  Future<void> deleteService(String id) async {
+    try { await _serviceRepository.deleteService(id); }
+    on AppException { rethrow; } catch (e) { throw FirestoreException('Failed to delete service'); }
+  }
+
+  @override
+  void dispose() {
+    _branchSub?.cancel();
+    _stylistSub?.cancel();
+    _serviceSub?.cancel();
+    super.dispose();
   }
 }

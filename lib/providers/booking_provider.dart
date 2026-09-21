@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/app_exceptions.dart';
 import '../repositories/appointment_repository.dart';
 import '../models/branch_model.dart';
-import '../models/service_model.dart';
 import '../models/stylist_model.dart';
+import '../models/service_model.dart';
 import '../models/appointment_model.dart';
 
 /// Provider Layer: Manages in-progress booking state and UI representation.
@@ -24,92 +25,82 @@ class BookingProvider extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  // Booking Flow State
   BranchModel? _selectedBranch;
   BranchModel? get selectedBranch => _selectedBranch;
-
-  ServiceModel? _selectedService;
-  ServiceModel? get selectedService => _selectedService;
 
   StylistModel? _selectedStylist;
   StylistModel? get selectedStylist => _selectedStylist;
 
+  ServiceModel? _selectedService;
+  ServiceModel? get selectedService => _selectedService;
+
   DateTime? _selectedDate;
   DateTime? get selectedDate => _selectedDate;
 
-  DateTime? _selectedTime;
-  DateTime? get selectedTime => _selectedTime;
+  String? _selectedTimeSlot;
+  String? get selectedTimeSlot => _selectedTimeSlot;
 
-  void setBranch(BranchModel branch) {
-    _selectedBranch = branch;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _customerAppointmentsStream;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? get customerAppointmentsStream => _customerAppointmentsStream;
+
+  String? _customerId;
+  String? _customerName;
+
+  void setCustomerInfo(String id, String name) {
+    _customerId = id;
+    _customerName = name;
+  }
+
+  void selectBranch(BranchModel branch) { _selectedBranch = branch; notifyListeners(); }
+  void selectStylist(StylistModel stylist) { _selectedStylist = stylist; notifyListeners(); }
+  void selectService(ServiceModel service) { _selectedService = service; notifyListeners(); }
+  void selectDate(DateTime date) { _selectedDate = date; notifyListeners(); }
+  void selectTimeSlot(String slot) { _selectedTimeSlot = slot; notifyListeners(); }
+
+  void loadCustomerAppointments(String customerId) {
+    _customerAppointmentsStream = _appointmentRepository.getCustomerAppointmentsStream(customerId);
     notifyListeners();
-  }
-
-  Stream<List<AppointmentModel>> getCustomerAppointmentsStream(String customerId) {
-    return _appointmentRepository.getCustomerAppointmentsStream(customerId);
-  }
-
-  Future<List<DateTime>> getBookedSlots(String stylistId, DateTime date) {
-    return _appointmentRepository.getBookedSlots(stylistId, date);
-  }
-
-  void setService(ServiceModel service) {
-    _selectedService = service;
-    notifyListeners();
-  }
-
-  void setStylist(StylistModel stylist) {
-    _selectedStylist = stylist;
-    notifyListeners();
-  }
-
-  void setDate(DateTime date) {
-    _selectedDate = date;
-    notifyListeners();
-  }
-
-  void setTime(DateTime time) {
-    _selectedTime = time;
-    notifyListeners();
-  }
-
-  void clearBookingState() {
-    _selectedBranch = null;
-    _selectedService = null;
-    _selectedStylist = null;
-    _selectedDate = null;
-    _selectedTime = null;
-    resetState();
   }
 
   /// Initiate an appointment booking. Enforces atomic constraints via Repository.
-  Future<void> bookAppointment({
-    required String customerId,
-    required String customerName,
-    required String branchId,
-    required String stylistId,
-    required String serviceId,
-    required DateTime scheduledAt,
-  }) async {
+  Future<void> bookAppointment() async {
+    if (_selectedBranch == null || _selectedStylist == null || 
+        _selectedService == null || _selectedDate == null || _selectedTimeSlot == null) {
+      _errorMessage = 'Please complete all booking steps.';
+      notifyListeners();
+      return;
+    }
+    
     _setLoading(true);
     _errorMessage = null;
     _isSuccess = false;
-
+    
     try {
-      // In a real implementation, we would generate a robust UUID here.
-      // For now, generating a millisecond-based ID for simplicity.
-      final appointmentId = DateTime.now().millisecondsSinceEpoch.toString();
-
+      final appointmentId = FirebaseFirestore.instance.collection('appointments').doc().id;
+      
+      // Parse time slot (format: "HH:mm")
+      final timeParts = _selectedTimeSlot!.split(':');
+      final hour = int.parse(timeParts[0]);
+      final minute = int.parse(timeParts[1]);
+      final scheduledAt = DateTime(
+        _selectedDate!.year, _selectedDate!.month, _selectedDate!.day,
+        hour, minute,
+      );
+      
       await _appointmentRepository.bookAppointment(
         appointmentId: appointmentId,
-        customerId: customerId,
-        customerName: customerName,
-        branchId: branchId,
-        stylistId: stylistId,
-        serviceId: serviceId,
+        customerId: _customerId ?? '',
+        customerName: _customerName ?? '',
+        branchId: _selectedBranch!.id,
+        branchName: _selectedBranch!.name,
+        stylistId: _selectedStylist!.id,
+        stylistName: _selectedStylist!.name,
+        serviceId: _selectedService!.id,
+        serviceName: _selectedService!.name,
+        price: _selectedService!.price,
         scheduledAt: scheduledAt,
       );
-
+      
       _isSuccess = true;
     } on SlotAlreadyBookedException catch (e) {
       _errorMessage = e.message;
@@ -153,28 +144,49 @@ class BookingProvider extends ChangeNotifier {
     }
   }
 
-  /// Reschedule an appointment and update its time slot.
-  Future<void> rescheduleAppointment({
+  Future<void> rescheduleAppointment({required String appointmentId, required DateTime newDateTime}) async {
+    _setLoading(true);
+    _errorMessage = null;
+    try {
+      await _appointmentRepository.rescheduleAppointment(appointmentId: appointmentId, newDateTime: newDateTime);
+      _isSuccess = true;
+    } on AppException catch (e) {
+      _errorMessage = e.message;
+    } catch (e) {
+      _errorMessage = 'An unexpected error occurred. Please try again.';
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> completeAppointment({
     required String appointmentId,
-    required DateTime newScheduledAt,
+    required String customerId,
+    required String branchId,
+    required String branchName,
+    required String stylistId,
+    required String stylistName,
+    required String serviceId,
+    required String serviceName,
+    required double price,
+    String notes = '',
   }) async {
     _setLoading(true);
     _errorMessage = null;
-    _isSuccess = false;
-
     try {
-      await _appointmentRepository.rescheduleAppointment(
+      await _appointmentRepository.completeAppointment(
         appointmentId: appointmentId,
-        newScheduledAt: newScheduledAt,
+        customerId: customerId,
+        branchId: branchId,
+        branchName: branchName,
+        stylistId: stylistId,
+        stylistName: stylistName,
+        serviceId: serviceId,
+        serviceName: serviceName,
+        price: price,
+        notes: notes,
       );
-
       _isSuccess = true;
-    } on AppointmentNotFoundException catch (e) {
-      _errorMessage = e.message;
-    } on InvalidStatusTransitionException catch (e) {
-      _errorMessage = e.message;
-    } on SlotAlreadyBookedException catch (e) {
-      _errorMessage = e.message;
     } on AppException catch (e) {
       _errorMessage = e.message;
     } catch (e) {
@@ -188,6 +200,11 @@ class BookingProvider extends ChangeNotifier {
     _isLoading = false;
     _isSuccess = false;
     _errorMessage = null;
+    _selectedBranch = null;
+    _selectedStylist = null;
+    _selectedService = null;
+    _selectedDate = null;
+    _selectedTimeSlot = null;
     notifyListeners();
   }
 

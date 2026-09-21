@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:stylehub/providers/reference_data_provider.dart';
-import 'package:stylehub/widgets/data_state_view.dart';
-import 'package:stylehub/widgets/domain_cards.dart';
-import 'package:stylehub/widgets/primary_button.dart';
-import 'package:stylehub/widgets/custom_text_field.dart';
-import 'package:stylehub/core/theme/app_typography.dart';
-import 'package:stylehub/core/theme/app_constants.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_constants.dart';
+import '../../core/widgets/app_loading.dart';
+import '../../core/widgets/app_error_widget.dart';
+import '../../models/branch_model.dart';
+import '../../models/stylist_model.dart';
+import '../../models/service_model.dart';
+import '../../providers/reference_data_provider.dart';
+import '../../widgets/data_state_view.dart';
 
 class AdminManagementScreen extends StatefulWidget {
   const AdminManagementScreen({super.key});
@@ -15,171 +17,409 @@ class AdminManagementScreen extends StatefulWidget {
   State<AdminManagementScreen> createState() => _AdminManagementScreenState();
 }
 
-class _AdminManagementScreenState extends State<AdminManagementScreen> {
+class _AdminManagementScreenState extends State<AdminManagementScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<ReferenceDataProvider>();
+      if (provider.branches.isEmpty && !provider.isLoading) {
+        provider.initialize();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<ReferenceDataProvider>();
-
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Admin Management'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Branches'),
-              Tab(text: 'Stylists'),
-              Tab(text: 'Services'),
-            ],
-          ),
-        ),
-        body: TabBarView(
-          children: [
-            _buildManagementTab(
-              title: 'Manage Branches',
-              data: provider.branches,
-              isLoading: provider.branchesLoading,
-              errorMessage: provider.branchesError,
-              itemBuilder: (branch) => BranchCard(
-                branch: branch,
-                onTap: () => _showEditDialog(context, 'Branch', branch),
-              ),
-              onAdd: () => _showAddDialog(context, 'Branch'),
-            ),
-            _buildManagementTab(
-              title: 'Manage Stylists',
-              data: provider.stylists,
-              isLoading: provider.stylistsLoading,
-              errorMessage: provider.stylistsError,
-              itemBuilder: (stylist) => StylistCard(
-                stylist: stylist,
-                onTap: () => _showEditDialog(context, 'Stylist', stylist),
-              ),
-              onAdd: () => _showAddDialog(context, 'Stylist'),
-            ),
-            _buildManagementTab(
-              title: 'Manage Services',
-              data: provider.services,
-              isLoading: provider.servicesLoading,
-              errorMessage: provider.servicesError,
-              itemBuilder: (service) => ListTile(
-                title: Text(service.name),
-                subtitle: Text('\$${service.price}'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () => _showEditDialog(context, 'Service', service),
-                ),
-              ),
-              onAdd: () => _showAddDialog(context, 'Service'),
-            ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Management'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Branches'),
+            Tab(text: 'Stylists'),
+            Tab(text: 'Services'),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildManagementTab({
-    required String title,
-    required List<dynamic> data,
-    required bool isLoading,
-    required String? errorMessage,
-    required Widget Function(dynamic) itemBuilder,
-    required VoidCallback onAdd,
-  }) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(AppSpacing.m),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: Consumer<ReferenceDataProvider>(
+        builder: (context, provider, _) {
+          return TabBarView(
+            controller: _tabController,
             children: [
-              Text(title, style: AppTypography.titleMedium),
-              PrimaryButton(
-                text: 'Add New',
-                onPressed: onAdd,
-                isLoading: false,
-              ),
+              _BranchesTab(provider: provider),
+              _StylistsTab(provider: provider),
+              _ServicesTab(provider: provider),
             ],
-          ),
-        ),
-        Expanded(
-          child: DataStateView<List<dynamic>>(
-            isLoading: isLoading,
-            errorMessage: errorMessage,
-            isEmpty: data.isEmpty && !isLoading,
-            data: data,
-            successBuilder: (list) {
-              return ListView.separated(
-                padding: const EdgeInsets.all(AppSpacing.m),
-                itemCount: list.length,
-                separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.s),
-                itemBuilder: (context, index) => itemBuilder(list[index]),
-              );
-            },
-          ),
-        ),
-      ],
+          );
+        },
+      ),
     );
   }
+}
 
-  void _showAddDialog(BuildContext context, String type) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          left: AppSpacing.m,
-          right: AppSpacing.m,
-          top: AppSpacing.m,
+class _BranchesTab extends StatelessWidget {
+  final ReferenceDataProvider provider;
+  const _BranchesTab({required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: DataStateView<List<BranchModel>>(
+        isLoading: provider.isLoading,
+        error: provider.error,
+        data: provider.branches,
+        onRetry: () => provider.initialize(),
+        successBuilder: (branches) => ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: branches.length,
+          itemBuilder: (context, index) {
+            final branch = branches[index];
+            return Card(
+              child: ListTile(
+                title: Text(branch.name),
+                subtitle: Text('${branch.city} • ${branch.address}'),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit),
+                      onPressed: () => _showBranchDialog(context, branch: branch),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => _confirmDelete(context, branch.id, 'branch'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Add New $type', style: AppTypography.titleMedium),
-            const SizedBox(height: AppSpacing.m),
-            CustomTextField(label: 'Name', hint: 'Enter $type name', controller: TextEditingController()),
-            const SizedBox(height: AppSpacing.m),
-            PrimaryButton(text: 'Save', onPressed: () => Navigator.pop(context)),
-            const SizedBox(height: AppSpacing.m),
-          ],
-        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showBranchDialog(context),
+        child: const Icon(Icons.add),
       ),
     );
   }
 
-  void _showEditDialog(BuildContext context, String type, dynamic item) {
-    showModalBottomSheet(
+  void _showBranchDialog(BuildContext context, {BranchModel? branch}) {
+    final nameCtrl = TextEditingController(text: branch?.name ?? '');
+    final cityCtrl = TextEditingController(text: branch?.city ?? '');
+    final addressCtrl = TextEditingController(text: branch?.address ?? '');
+    final phoneCtrl = TextEditingController(text: branch?.phone ?? '');
+
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          left: AppSpacing.m,
-          right: AppSpacing.m,
-          top: AppSpacing.m,
+      builder: (ctx) => AlertDialog(
+        title: Text(branch == null ? 'Add Branch' : 'Edit Branch'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name')),
+              TextField(controller: cityCtrl, decoration: const InputDecoration(labelText: 'City')),
+              TextField(controller: addressCtrl, decoration: const InputDecoration(labelText: 'Address')),
+              TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'Phone')),
+            ],
+          ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Edit $type', style: AppTypography.titleMedium),
-            const SizedBox(height: AppSpacing.m),
-            CustomTextField(label: 'Name', hint: 'Edit name', controller: TextEditingController()),
-            const SizedBox(height: AppSpacing.m),
-            Row(
-              children: [
-                Expanded(
-                  child: SecondaryButton(text: 'Delete', onPressed: () => Navigator.pop(context)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () async {
+              final data = {
+                'name': nameCtrl.text.trim(),
+                'city': cityCtrl.text.trim(),
+                'address': addressCtrl.text.trim(),
+                'phone': phoneCtrl.text.trim(),
+              };
+              try {
+                if (branch == null) {
+                  await provider.createBranch(data);
+                } else {
+                  await provider.updateBranch(branch.id, data);
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+              } catch (e) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              }
+            },
+            child: Text(branch == null ? 'Create' : 'Update'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context, String id, String type) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete $type?'),
+        content: const Text('This action cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              try {
+                await provider.deleteBranch(id);
+                if (ctx.mounted) Navigator.pop(ctx);
+              } catch (e) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StylistsTab extends StatelessWidget {
+  final ReferenceDataProvider provider;
+  const _StylistsTab({required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: DataStateView<List<StylistModel>>(
+        isLoading: provider.isLoading,
+        error: provider.error,
+        data: provider.stylists,
+        onRetry: () => provider.initialize(),
+        successBuilder: (stylists) => ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: stylists.length,
+          itemBuilder: (context, index) {
+            final stylist = stylists[index];
+            return Card(
+              child: ListTile(
+                leading: CircleAvatar(
+                  child: Text(stylist.name.isNotEmpty ? stylist.name[0] : '?'),
                 ),
-                const SizedBox(width: AppSpacing.s),
-                Expanded(
-                  child: PrimaryButton(text: 'Update', onPressed: () => Navigator.pop(context)),
+                title: Text(stylist.name),
+                subtitle: Text('${stylist.specialization.join(', ')} • ${stylist.active ? 'Active' : 'Inactive'}'),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit),
+                      onPressed: () => _showStylistDialog(context, stylist: stylist),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () async {
+                        try { await provider.deleteStylist(stylist.id); }
+                        catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'))); }
+                      },
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.m),
-          ],
+              ),
+            );
+          },
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showStylistDialog(context),
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  void _showStylistDialog(BuildContext context, {StylistModel? stylist}) {
+    final nameCtrl = TextEditingController(text: stylist?.name ?? '');
+    final branchIdCtrl = TextEditingController(text: stylist?.branchId ?? '');
+    final specCtrl = TextEditingController(text: stylist?.specialization.join(', ') ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(stylist == null ? 'Add Stylist' : 'Edit Stylist'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name')),
+              // Branch picker - show dropdown of available branches
+              DropdownButtonFormField<String>(
+                value: branchIdCtrl.text.isNotEmpty ? branchIdCtrl.text : null,
+                decoration: const InputDecoration(labelText: 'Branch'),
+                items: provider.branches.map((b) => DropdownMenuItem(
+                  value: b.id,
+                  child: Text(b.name),
+                )).toList(),
+                onChanged: (v) => branchIdCtrl.text = v ?? '',
+              ),
+              TextField(controller: specCtrl, decoration: const InputDecoration(labelText: 'Specializations (comma separated)')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () async {
+              final data = {
+                'name': nameCtrl.text.trim(),
+                'branchId': branchIdCtrl.text.trim(),
+                'specialization': specCtrl.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList(),
+                'active': true,
+                'startTime': '09:00',
+                'endTime': '18:00',
+                'breakStart': '13:00',
+                'breakEnd': '14:00',
+                'workingDays': ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+              };
+              try {
+                if (stylist == null) {
+                  await provider.createStylist(data);
+                } else {
+                  await provider.updateStylist(stylist.id, data);
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+              } catch (e) {
+                if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e')));
+              }
+            },
+            child: Text(stylist == null ? 'Create' : 'Update'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ServicesTab extends StatelessWidget {
+  final ReferenceDataProvider provider;
+  const _ServicesTab({required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: DataStateView<List<ServiceModel>>(
+        isLoading: provider.isLoading,
+        error: provider.error,
+        data: provider.services,
+        onRetry: () => provider.initialize(),
+        successBuilder: (services) => ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: services.length,
+          itemBuilder: (context, index) {
+            final service = services[index];
+            return Card(
+              child: ListTile(
+                title: Text(service.name),
+                subtitle: Text('${service.category} • ₹${service.price.toStringAsFixed(0)} • ${service.durationMinutes} min'),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit),
+                      onPressed: () => _showServiceDialog(context, service: service),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () async {
+                        try { await provider.deleteService(service.id); }
+                        catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'))); }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showServiceDialog(context),
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  void _showServiceDialog(BuildContext context, {ServiceModel? service}) {
+    final nameCtrl = TextEditingController(text: service?.name ?? '');
+    final categoryCtrl = TextEditingController(text: service?.category ?? '');
+    final descCtrl = TextEditingController(text: service?.description ?? '');
+    final priceCtrl = TextEditingController(text: service?.price.toString() ?? '');
+    final durationCtrl = TextEditingController(text: service?.durationMinutes.toString() ?? '');
+    final branchIdCtrl = TextEditingController(text: service?.branchId ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(service == null ? 'Add Service' : 'Edit Service'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name')),
+              TextField(controller: categoryCtrl, decoration: const InputDecoration(labelText: 'Category')),
+              TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description')),
+              TextField(controller: priceCtrl, decoration: const InputDecoration(labelText: 'Price (₹)'), keyboardType: TextInputType.number),
+              TextField(controller: durationCtrl, decoration: const InputDecoration(labelText: 'Duration (minutes)'), keyboardType: TextInputType.number),
+              DropdownButtonFormField<String>(
+                value: branchIdCtrl.text.isNotEmpty ? branchIdCtrl.text : null,
+                decoration: const InputDecoration(labelText: 'Branch'),
+                items: provider.branches.map((b) => DropdownMenuItem(
+                  value: b.id,
+                  child: Text(b.name),
+                )).toList(),
+                onChanged: (v) => branchIdCtrl.text = v ?? '',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () async {
+              final data = {
+                'name': nameCtrl.text.trim(),
+                'category': categoryCtrl.text.trim(),
+                'description': descCtrl.text.trim(),
+                'price': double.tryParse(priceCtrl.text) ?? 0.0,
+                'durationMinutes': int.tryParse(durationCtrl.text) ?? 30,
+                'branchId': branchIdCtrl.text.trim(),
+              };
+              try {
+                if (service == null) {
+                  await provider.createService(data);
+                } else {
+                  await provider.updateService(service.id, data);
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+              } catch (e) {
+                if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e')));
+              }
+            },
+            child: Text(service == null ? 'Create' : 'Update'),
+          ),
+        ],
       ),
     );
   }

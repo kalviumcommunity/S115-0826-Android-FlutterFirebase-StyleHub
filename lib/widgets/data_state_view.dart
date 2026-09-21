@@ -1,91 +1,53 @@
 import 'package:flutter/material.dart';
-import 'package:stylehub/core/theme/app_colors.dart';
-import 'package:stylehub/core/theme/app_typography.dart';
-import 'package:stylehub/core/theme/app_constants.dart';
+import '../core/widgets/app_loading.dart';
+import '../core/widgets/app_error_widget.dart';
 
-/// A generic wrapper that handles the 4 mandatory UI states:
-/// Loading, Error, Empty, and Success.
 class DataStateView<T> extends StatelessWidget {
   final bool isLoading;
-  final String? errorMessage;
-  final T data;
-  final bool isEmpty;
-  final Widget Function(T data) successBuilder;
+  final String? error;
+  final T? data;
+  final Widget Function()? loadingBuilder;
   final Widget Function(String error)? errorBuilder;
   final Widget Function()? emptyBuilder;
-  final Widget Function()? loadingBuilder;
+  final Widget Function(T data) successBuilder;
+  final VoidCallback? onRetry;
 
   const DataStateView({
     super.key,
     required this.isLoading,
-    required this.errorMessage,
-    required this.data,
-    required this.isEmpty,
-    required this.successBuilder,
+    this.error,
+    this.data,
+    this.loadingBuilder,
     this.errorBuilder,
     this.emptyBuilder,
-    this.loadingBuilder,
+    required this.successBuilder,
+    this.onRetry,
   });
 
   @override
   Widget build(BuildContext context) {
-    // 1. Priority: Loading
     if (isLoading) {
       return loadingBuilder?.call() ??
-        const Center(
-          child: CircularProgressIndicator(
-            color: AppColors.primary,
-          ),
-        );
+          const Center(child: AppCircularProgressIndicator());
     }
-
-    // 2. Priority: Error
-    if (errorMessage != null) {
-      return errorBuilder?.call(errorMessage!) ??
-        Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, color: AppColors.error, size: 48),
-              const SizedBox(height: AppSpacing.m),
-              Text(
-                errorMessage!,
-                textAlign: TextAlign.center,
-                style: AppTypography.bodyMedium.copyWith(color: AppColors.onSurface),
-              ),
-              const SizedBox(height: AppSpacing.m),
-              ElevatedButton(
-                onPressed: () {
-                  // Retry logic is usually handled by the parent calling
-                  // a provider method.
-                },
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        );
+    if (error != null) {
+      return errorBuilder?.call(error!) ??
+          Center(child: AppErrorWidget(message: error!, onRetry: onRetry));
     }
-
-    // 3. Priority: Empty
-    if (isEmpty) {
+    if (data == null || (data is List && (data as List).isEmpty)) {
       return emptyBuilder?.call() ??
-        Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.inventory_2_outlined, color: AppColors.secondary, size: 48),
-              const SizedBox(height: AppSpacing.m),
-              Text(
-                'No data found',
-                style: AppTypography.titleMedium.copyWith(color: AppColors.onSurface),
-              ),
-            ],
-          ),
-        );
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text('No data available',
+                    style: TextStyle(fontSize: 16, color: Colors.grey[600])),
+              ],
+            ),
+          );
     }
-
-    // 4. Priority: Success
-    return successBuilder(data);
+    return successBuilder(data as T);
   }
-
 }

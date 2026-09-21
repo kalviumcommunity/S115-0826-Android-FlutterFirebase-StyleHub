@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_constants.dart';
 import '../../core/widgets/app_button.dart';
-import '../../models/branch_model.dart';
+import '../../core/widgets/app_card.dart';
 import '../../models/service_model.dart';
-import '../../providers/reference_data_provider.dart';
 import '../../providers/booking_provider.dart';
+import '../../providers/reference_data_provider.dart';
 import 'stylist_selection_screen.dart';
 
 class ServiceSelectionScreen extends StatefulWidget {
-  final BranchModel branch;
-
-  const ServiceSelectionScreen({
-    super.key,
-    required this.branch,
-  });
+  const ServiceSelectionScreen({super.key});
 
   @override
   State<ServiceSelectionScreen> createState() => _ServiceSelectionScreenState();
@@ -23,127 +20,81 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
   ServiceModel? _selectedService;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<BookingProvider>().setBranch(widget.branch);
-    });
-  }
-
-  void _onContinue() {
-    if (_selectedService != null) {
-      context.read<BookingProvider>().setService(_selectedService!);
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => StylistSelectionScreen(
-            branch: widget.branch,
-            service: _selectedService!,
-          ),
-        ),
-      );
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final provider = context.watch<ReferenceDataProvider>();
+    final bookingProvider = context.watch<BookingProvider>();
+    final refProvider = context.watch<ReferenceDataProvider>();
+    final branchId = bookingProvider.selectedBranch?.id;
     
-    // Services for this specific branch
-    final services = provider.services.where((s) => s.branchId == widget.branch.id).toList();
+    final services = branchId != null
+        ? refProvider.services.where((s) => s.branchId == branchId).toList()
+        : <ServiceModel>[];
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Select Service'),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: services.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+      appBar: AppBar(title: const Text('Select Service')),
+      body: services.isEmpty
+          ? const Center(child: Text('No services available for this branch'))
+          : ListView.builder(
+              padding: const EdgeInsets.all(AppSpacing.m),
+              itemCount: services.length,
+              itemBuilder: (context, index) {
+                final service = services[index];
+                final isSelected = _selectedService?.id == service.id;
+                return AppCard(
+                  onTap: () => setState(() => _selectedService = service),
+                  color: isSelected ? AppColors.primaryContainer : null,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.m),
+                    child: Row(
                       children: [
-                        Icon(Icons.spa_outlined, size: 64, color: Colors.grey[400]),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No services available at this branch',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: Colors.grey[600],
-                              ),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16.0),
-                    itemCount: services.length,
-                    itemBuilder: (context, index) {
-                      final service = services[index];
-                      final isSelected = _selectedService?.id == service.id;
-
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(
-                            color: isSelected
-                                ? Theme.of(context).colorScheme.primary
-                                : Colors.grey.shade200,
-                            width: isSelected ? 2 : 1,
-                          ),
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(16),
-                          title: Text(
-                            service.name,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                          subtitle: Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Text(service.category),
-                          ),
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                '\$${service.price.toStringAsFixed(2)}',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      color: Theme.of(context).colorScheme.primary,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                              ),
+                              Text(service.name,
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      )),
                               const SizedBox(height: 4),
-                              Text(
-                                '${service.durationMinutes} min',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Colors.grey[600],
-                                    ),
-                              ),
+                              Text('${service.durationMinutes} min • ${service.category}',
+                                  style: Theme.of(context).textTheme.bodySmall),
+                              if (service.description.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(service.description,
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                          color: AppColors.textSecondary,
+                                        ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis),
+                              ],
                             ],
                           ),
-                          onTap: () {
-                            setState(() {
-                              _selectedService = service;
-                            });
-                          },
                         ),
-                      );
-                    },
+                        Text('₹${service.price.toStringAsFixed(0)}',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                )),
+                      ],
+                    ),
                   ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: AppButton(
-              text: 'Continue',
-              onPressed: _selectedService != null ? _onContinue : null,
-              isLoading: false,
+                );
+              },
             ),
-          ),
-        ],
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(AppSpacing.m),
+        child: AppButton(
+          text: 'Continue',
+          isDisabled: _selectedService == null,
+          onPressed: () {
+            if (_selectedService != null) {
+              bookingProvider.selectService(_selectedService!);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const StylistSelectionScreen()),
+              );
+            }
+          },
+        ),
       ),
     );
   }

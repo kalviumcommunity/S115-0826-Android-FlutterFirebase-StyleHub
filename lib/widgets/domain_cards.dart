@@ -1,164 +1,91 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:stylehub/core/theme/app_colors.dart';
-import 'package:stylehub/core/theme/app_typography.dart';
-import 'package:stylehub/core/theme/app_constants.dart';
-import 'package:stylehub/models/branch_model.dart';
-import 'package:stylehub/models/stylist_model.dart';
-import 'package:stylehub/models/appointment_model.dart';
-
-class BranchCard extends StatelessWidget {
-  final BranchModel branch;
-  final VoidCallback onTap;
-
-  const BranchCard({super.key, required this.branch, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.medium),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.m),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.small),
-                child: CachedNetworkImage(
-                  imageUrl: branch.imageUrl ?? '',
-                  width: 60,
-                  height: 60,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(color: AppColors.secondaryContainer),
-                  errorWidget: (context, url, error) => const Icon(Icons.store, color: AppColors.secondary),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.m),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      branch.name,
-                      style: AppTypography.titleMedium,
-                    ),
-                    Text(
-                      branch.city,
-                      style: AppTypography.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: AppColors.primary),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class StylistCard extends StatelessWidget {
-  final StylistModel stylist;
-  final VoidCallback onTap;
-
-  const StylistCard({super.key, required this.stylist, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.medium),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.m),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 25,
-                backgroundImage: stylist.photoUrl != null
-                  ? CachedNetworkImageProvider(stylist.photoUrl!)
-                  : null,
-                child: stylist.photoUrl == null ? const Icon(Icons.person) : null,
-              ),
-              const SizedBox(width: AppSpacing.m),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      stylist.name,
-                      style: AppTypography.titleSmall,
-                    ),
-                    Text(
-                      stylist.specialization.join(', '),
-                      style: AppTypography.bodySmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: AppColors.primary),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+import '../core/theme/app_colors.dart';
+import '../models/appointment_model.dart';
+import 'package:intl/intl.dart';
 
 class AppointmentCard extends StatelessWidget {
   final AppointmentModel appointment;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
-  const AppointmentCard({super.key, required this.appointment, required this.onTap});
+  const AppointmentCard({
+    super.key,
+    required this.appointment,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Card(
+      margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.medium),
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.m),
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    appointment.serviceName,
-                    style: AppTypography.titleSmall,
+                  Expanded(
+                    child: Text(
+                      appointment.serviceName.isNotEmpty
+                          ? appointment.serviceName
+                          : 'Service',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
                   ),
-                  _buildStatusChip(appointment.status),
+                  _buildStatusChip(context),
                 ],
               ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                '${appointment.stylistName} • ${appointment.branchName}',
-                style: AppTypography.bodySmall,
-              ),
-              const SizedBox(height: AppSpacing.xs),
+              const SizedBox(height: 8),
+              if (appointment.stylistName.isNotEmpty)
+                Row(
+                  children: [
+                    Icon(Icons.person_outline, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(appointment.stylistName,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                  ],
+                ),
+              const SizedBox(height: 4),
+              if (appointment.branchName.isNotEmpty)
+                Row(
+                  children: [
+                    Icon(Icons.store_outlined, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(appointment.branchName,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                  ],
+                ),
+              const SizedBox(height: 4),
               Row(
                 children: [
-                  const Icon(Icons.calendar_today, size: 14, color: AppColors.secondary),
-                  const SizedBox(width: AppSpacing.xs),
+                  Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
                   Text(
-                    appointment.scheduledAt.toLocal().toString().split(' ')[0],
-                    style: AppTypography.bodySmall,
-                  ),
-                  const SizedBox(width: AppSpacing.m),
-                  const Icon(Icons.access_time, size: 14, color: AppColors.secondary),
-                  const SizedBox(width: AppSpacing.xs),
-                  Text(
-                    appointment.scheduledAt.toLocal().toString().split(' ')[1].substring(0, 5),
-                    style: AppTypography.bodySmall,
+                    DateFormat('MMM dd, yyyy – hh:mm a')
+                        .format(appointment.scheduledAt),
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ],
               ),
+              if (appointment.price > 0) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.currency_rupee, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text('₹${appointment.price.toStringAsFixed(0)}',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            )),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -166,25 +93,38 @@ class AppointmentCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusChip(String status) {
-    Color color;
-    switch (status) {
-      case 'confirmed': color = Colors.green; break;
-      case 'pending': color = Colors.orange; break;
-      case 'cancelled': color = Colors.red; break;
-      default: color = AppColors.secondary;
-    }
+  Widget _buildStatusChip(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppRadius.small),
-        border: Border.all(color: color),
+        color: _getStatusColor().withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        status.toUpperCase(),
-        style: AppTypography.labelSmall.copyWith(color: color, fontWeight: FontWeight.bold),
+        appointment.status.replaceAll('_', ' ').toUpperCase(),
+        style: TextStyle(
+          color: _getStatusColor(),
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
+  }
+
+  Color _getStatusColor() {
+    switch (appointment.status) {
+      case 'confirmed':
+        return Colors.green;
+      case 'pending':
+        return Colors.orange;
+      case 'cancelled':
+        return Colors.red;
+      case 'completed':
+        return Colors.blue;
+      case 'no_show':
+        return Colors.deepOrange;
+      default:
+        return Colors.grey;
+    }
   }
 }

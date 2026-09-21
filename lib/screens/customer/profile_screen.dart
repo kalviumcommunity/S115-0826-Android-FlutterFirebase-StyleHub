@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:stylehub/providers/auth_provider.dart';
-import 'package:stylehub/widgets/primary_button.dart';
-import 'package:stylehub/widgets/custom_text_field.dart';
-import 'package:stylehub/core/theme/app_colors.dart';
-import 'package:stylehub/core/theme/app_constants.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_constants.dart';
+import '../../core/widgets/app_button.dart';
+import '../../core/widgets/app_text_field.dart';
+import '../../providers/auth_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,6 +15,8 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  bool _isEditing = false;
 
   @override
   void initState() {
@@ -22,12 +24,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = context.read<AuthProvider>().currentUser;
     if (user != null) {
       _nameController.text = user.name;
+      _phoneController.text = user.phone;
     }
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -37,70 +41,101 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = authProvider.currentUser;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My Profile')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.l),
-        child: Column(
-          children: [
-            Center(
-              child: Stack(
+      appBar: AppBar(
+        title: const Text('Profile'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () => authProvider.signOut(),
+          ),
+        ],
+      ),
+      body: user == null
+          ? const Center(child: Text('Not signed in'))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpacing.l),
+              child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 60,
-                    backgroundImage: user?.profileImageUrl != null
-                        ? NetworkImage(user!.profileImageUrl!)
-                        : null,
-                    child: user?.profileImageUrl == null ? const Icon(Icons.person, size: 60) : null,
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: CircleAvatar(
-                      radius: 18,
-                      backgroundColor: AppColors.primary,
-                      child: IconButton(
-                        icon: const Icon(Icons.camera_alt, size: 18, color: Colors.white),
-                        onPressed: () {},
+                  // Profile Photo
+                  Stack(
+                    alignment: Alignment.bottomRight,
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundImage: user.profileImageUrl != null
+                            ? NetworkImage(user.profileImageUrl!)
+                            : null,
+                        child: user.profileImageUrl == null
+                            ? Text(user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+                                style: const TextStyle(fontSize: 36))
+                            : null,
                       ),
-                    ),
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: AppColors.primary,
+                        child: IconButton(
+                          icon: const Icon(Icons.camera_alt, size: 18, color: Colors.white),
+                          onPressed: () {
+                            // TODO: Wire image_picker + StorageService
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Photo upload coming soon')),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.l),
+
+                  // Email (read-only)
+                  ListTile(
+                    leading: const Icon(Icons.email_outlined),
+                    title: const Text('Email'),
+                    subtitle: Text(user.email),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.badge_outlined),
+                    title: const Text('Role'),
+                    subtitle: Text(user.role.toUpperCase()),
+                  ),
+                  const Divider(),
+                  const SizedBox(height: AppSpacing.m),
+
+                  // Editable fields
+                  AppTextField(
+                    labelText: 'Name',
+                    hintText: 'Enter your name',
+                    controller: _nameController,
+                    prefixIcon: Icons.person_outline,
+                  ),
+                  const SizedBox(height: AppSpacing.m),
+                  AppTextField(
+                    labelText: 'Phone',
+                    hintText: 'Enter your phone number',
+                    controller: _phoneController,
+                    prefixIcon: Icons.phone_outlined,
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: AppSpacing.l),
+
+                  AppButton(
+                    text: 'Update Profile',
+                    isLoading: authProvider.isLoading,
+                    onPressed: () async {
+                      final updatedUser = user.copyWith(
+                        name: _nameController.text.trim(),
+                        phone: _phoneController.text.trim(),
+                      );
+                      // TODO: Call authRepository.updateUserProfile(updatedUser)
+                      // For now, show feedback
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Profile update coming soon')),
+                      );
+                    },
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.xl),
-            CustomTextField(
-              label: 'Full Name',
-              hint: 'Your name',
-              controller: _nameController,
-              prefixIcon: const Icon(Icons.person_outline),
-            ),
-            const SizedBox(height: AppSpacing.m),
-            CustomTextField(
-              label: 'Email',
-              hint: 'your@email.com',
-              controller: TextEditingController(text: user?.email),
-              prefixIcon: const Icon(Icons.email_outlined),
-              readOnly: true,
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            PrimaryButton(
-              text: 'Update Profile',
-              onPressed: () {
-                // Call provider to update user profile
-              },
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            SecondaryButton(
-              text: 'Logout',
-              onPressed: () async {
-                await authProvider.signOut();
-                if (!context.mounted) return;
-                Navigator.of(context).pushReplacementNamed('/login');
-              },
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

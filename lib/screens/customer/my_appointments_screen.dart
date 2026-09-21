@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:stylehub/providers/booking_provider.dart';
-import 'package:stylehub/providers/auth_provider.dart';
-import 'package:stylehub/models/appointment_model.dart';
-import 'package:stylehub/widgets/domain_cards.dart';
-import 'package:stylehub/core/theme/app_colors.dart';
-import 'package:stylehub/core/theme/app_typography.dart';
-import 'package:stylehub/core/theme/app_constants.dart';
-import 'package:stylehub/core/widgets/app_loading.dart';
-import 'package:stylehub/core/widgets/app_error_widget.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../core/widgets/app_error_widget.dart';
+import '../../core/widgets/app_loading.dart';
+import '../../models/appointment_model.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/booking_provider.dart';
+import '../../widgets/domain_cards.dart';
 
 class MyAppointmentsScreen extends StatefulWidget {
   const MyAppointmentsScreen({super.key});
@@ -18,82 +16,120 @@ class MyAppointmentsScreen extends StatefulWidget {
 }
 
 class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
-  late Stream<List<AppointmentModel>> _appointmentsStream;
-  bool _initialized = false;
-
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_initialized) {
-      final customerId = context.read<AuthProvider>().currentUser?.uid;
-      if (customerId != null) {
-        _appointmentsStream = context.read<BookingProvider>().getCustomerAppointmentsStream(customerId);
-      } else {
-        _appointmentsStream = const Stream.empty();
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = context.read<AuthProvider>();
+      final bookingProvider = context.read<BookingProvider>();
+      if (authProvider.currentUser != null) {
+        bookingProvider.loadCustomerAppointments(authProvider.currentUser!.uid);
       }
-      _initialized = true;
-    }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final bookingProvider = context.watch<BookingProvider>();
+
     return Scaffold(
-      appBar: AppBar(title: const Text('My Bookings')),
-      body: StreamBuilder<List<AppointmentModel>>(
-        stream: _appointmentsStream,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: AppErrorWidget(
-                  message: 'Failed to load bookings. Please try again.',
-                  onRetry: () => setState(() {
-                    _initialized = false;
-                  }),
-                ),
-              ),
-            );
-          }
+      appBar: AppBar(title: const Text('My Appointments')),
+      body: bookingProvider.customerAppointmentsStream == null
+          ? const Center(child: Text('No appointments yet'))
+          : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: bookingProvider.customerAppointmentsStream,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: AppErrorWidget(
+                      message: 'Failed to load appointments',
+                      onRetry: () {
+                        final uid = context.read<AuthProvider>().currentUser?.uid;
+                        if (uid != null) bookingProvider.loadCustomerAppointments(uid);
+                      },
+                    ),
+                  );
+                }
 
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: AppCircularProgressIndicator());
-          }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: AppCircularProgressIndicator());
+                }
 
-          final allAppointments = snapshot.data ?? [];
-          final upcomingAppointments = allAppointments.where((a) => a.status == 'pending' || a.status == 'confirmed').toList();
+                final docs = snapshot.data?.docs ?? [];
+                if (docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.calendar_today_outlined, size: 64, color: Colors.grey[400]),
+                        const SizedBox(height: 16),
+                        Text('No appointments yet',
+                            style: TextStyle(fontSize: 16, color: Colors.grey[600])),
+                      ],
+                    ),
+                  );
+                }
 
-          if (upcomingAppointments.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.calendar_month, size: 64, color: AppColors.secondary),
-                  const SizedBox(height: AppSpacing.m),
-                  Text(
-                    'No upcoming bookings',
-                    style: AppTypography.titleLarge.copyWith(color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
-            );
-          }
+                final appointments = docs
+                    .map((doc) => AppointmentModel.fromFirestore(doc))
+                    .toList();
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(AppSpacing.m),
-            itemCount: upcomingAppointments.length,
-            separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.s),
-            itemBuilder: (context, index) {
-              final appt = upcomingAppointments[index];
-              return AppointmentCard(
-                appointment: appt,
-                onTap: () {
-                  // Additional interactions if any
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: appointments.length,
+                  itemBuilder: (context, index) {
+                    final appt = appointments[index];
+                    return AppointmentCard(
+                      appointment: appt,
+                      onTap: () => _showAppointmentActions(context, appt),
+                    );
+                  },
+                );
+              },
+            ),
+    );
+  }
+
+  void _showAppointmentActions(BuildContext context, AppointmentModel appt) {
+    final canCancel = appt.status == 'pending' || appt.status == 'confirmed';
+    
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(appt.serviceName.isNotEmpty ? appt.serviceName : 'Appointment',
+                style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text('Status: ${appt.status.toUpperCase()}',
+                style: TextStyle(color: Colors.grey[600])),
+            const SizedBox(height: 16),
+            if (canCancel) ...[
+              FilledButton.tonal(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await context.read<BookingProvider>().cancelAppointment(
+                    appointmentId: appt.id,
+                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Appointment cancelled')),
+                    );
+                  }
                 },
-              );
-            },
-          );
-        },
+                child: const Text('Cancel Appointment'),
+              ),
+            ],
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
       ),
     );
   }

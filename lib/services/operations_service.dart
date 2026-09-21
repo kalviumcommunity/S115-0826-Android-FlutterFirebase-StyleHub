@@ -1,142 +1,93 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-
-import '../core/constants.dart';
-import '../models/branch_model.dart';
-import '../models/service_model.dart';
-import '../models/stylist_model.dart';
 import 'firestore_service.dart';
 
 class CustomerInsight {
-  final List<QueryDocumentSnapshot<Map<String, dynamic>>> history;
+  final int totalVisits;
   final String? preferredStylist;
   final String? mostBookedService;
+  final int branchesVisited;
+  final List<Map<String, dynamic>> history;
 
   const CustomerInsight({
-    required this.history,
-    required this.preferredStylist,
-    required this.mostBookedService,
+    this.totalVisits = 0,
+    this.preferredStylist,
+    this.mostBookedService,
+    this.branchesVisited = 0,
+    this.history = const [],
   });
-
-  int get totalNetworkVisits => history.length;
-
-  bool get isReturning => totalNetworkVisits > 0;
 }
 
 class OperationsService {
-  final FirestoreService _firestore;
+  final FirestoreService _firestoreService;
 
-  OperationsService({FirestoreService? firestore})
-    : _firestore = firestore ?? FirestoreService();
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> streamCustomers() {
-    return _firestore.streamCollection(
-      collection: FirestoreCollections.users,
-      queryBuilder: (ref) => ref.where('role', isEqualTo: UserRoles.customer),
-    );
-  }
+  OperationsService({required FirestoreService firestoreService})
+      : _firestoreService = firestoreService;
 
   Future<CustomerInsight> getCustomerInsight(String customerId) async {
-    final result = await _firestore.queryCollection(
-      collection: FirestoreCollections.serviceHistory,
-      queryBuilder: (ref) => ref
-          .where('customerId', isEqualTo: customerId),
+    final snapshot = await _firestoreService.queryCollection(
+      collection: 'serviceHistory',
+      queryBuilder: (ref) => ref.where('customerId', isEqualTo: customerId)
+          .orderBy('completedAt', descending: true),
     );
 
-    final history = result.docs.toList()
-      ..sort((left, right) {
-        final leftDate = _timestampValue(left.data()['completedAt']);
-        final rightDate = _timestampValue(right.data()['completedAt']);
-        return rightDate.compareTo(leftDate);
-      });
-
-    final stylistCounts = <String, int>{};
-    final serviceCounts = <String, int>{};
-    for (final document in history) {
-      final data = document.data();
-      final stylistId = data['stylistId'] as String?;
-      final serviceId = data['serviceId'] as String?;
-      if (stylistId != null) {
-        stylistCounts[stylistId] = (stylistCounts[stylistId] ?? 0) + 1;
-      }
-      if (serviceId != null) {
-        serviceCounts[serviceId] = (serviceCounts[serviceId] ?? 0) + 1;
-      }
+    final docs = snapshot.docs;
+    if (docs.isEmpty) {
+      return const CustomerInsight();
     }
 
-    final stylistId = _mostFrequent(stylistCounts);
-    final serviceId = _mostFrequent(serviceCounts);
+    final history = docs.map((doc) {
+      final data = doc.data();
+      data['id'] = doc.id;
+      return data;
+    }).toList();
+
+    // Compute preferred stylist (most frequent)
+    final stylistCounts = <String, int>{};
+    final stylistNames = <String, String>{};
+    final serviceCounts = <String, int>{};
+    final serviceNames = <String, String>{};
+    final branchIds = <String>{};
+
+    for (final entry in history) {
+      final stylistId = entry['stylistId'] as String? ?? '';
+      final stylistName = entry['stylistName'] as String? ?? '';
+      final serviceId = entry['serviceId'] as String? ?? '';
+      final serviceName = entry['serviceName'] as String? ?? '';
+      final branchId = entry['branchId'] as String? ?? '';
+
+      if (stylistId.isNotEmpty) {
+        stylistCounts[stylistId] = (stylistCounts[stylistId] ?? 0) + 1;
+        if (stylistName.isNotEmpty) stylistNames[stylistId] = stylistName;
+      }
+      if (serviceId.isNotEmpty) {
+        serviceCounts[serviceId] = (serviceCounts[serviceId] ?? 0) + 1;
+        if (serviceName.isNotEmpty) serviceNames[serviceId] = serviceName;
+      }
+      if (branchId.isNotEmpty) branchIds.add(branchId);
+    }
+
+    String? preferredStylist;
+    if (stylistCounts.isNotEmpty) {
+      final topStylistId = stylistCounts.entries
+          .reduce((a, b) => a.value >= b.value ? a : b)
+          .key;
+      preferredStylist = stylistNames[topStylistId] ?? topStylistId;
+    }
+
+    String? mostBookedService;
+    if (serviceCounts.isNotEmpty) {
+      final topServiceId = serviceCounts.entries
+          .reduce((a, b) => a.value >= b.value ? a : b)
+          .key;
+      mostBookedService = serviceNames[topServiceId] ?? topServiceId;
+    }
+
     return CustomerInsight(
+      totalVisits: docs.length,
+      preferredStylist: preferredStylist,
+      mostBookedService: mostBookedService,
+      branchesVisited: branchIds.length,
       history: history,
-      preferredStylist: await _lookupName(
-        FirestoreCollections.stylists,
-        stylistId,
-      ),
-      mostBookedService: await _lookupName(
-        FirestoreCollections.services,
-        serviceId,
-      ),
     );
   }
-
-  DateTime _timestampValue(dynamic value) {
-    if (value is Timestamp) return value.toDate();
-    if (value is DateTime) return value;
-    return DateTime.fromMillisecondsSinceEpoch(0);
-  }
-
-  Future<String?> _lookupName(String collection, String? id) async {
-    if (id == null) return null;
-    final document = await _firestore.getDocument(
-      collection: collection,
-      documentId: id,
-    );
-    return document.data()?['name'] as String?;
-  }
-
-  String? _mostFrequent(Map<String, int> counts) {
-    if (counts.isEmpty) return null;
-    return counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
-  }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> streamCollection(
-    String collection, {
-    Query<Map<String, dynamic>> Function(CollectionReference<Map<String, dynamic>>)? queryBuilder,
-  }) {
-    return _firestore.streamCollection(
-      collection: collection,
-      queryBuilder: queryBuilder,
-    );
-  }
-
-  Future<void> save({
-    required String collection,
-    String? documentId,
-    required Map<String, dynamic> data,
-  }) async {
-    final id = documentId ?? _firestore.autoIdDocRef(collection).id;
-    await _firestore.setDocument(
-      collection: collection,
-      documentId: id,
-      data: data,
-    );
-  }
-
-  Future<void> delete({
-    required String collection,
-    required String documentId,
-  }) {
-    return _firestore.deleteDocument(
-      collection: collection,
-      documentId: documentId,
-    );
-  }
-
-  BranchModel branchFrom(DocumentSnapshot<Map<String, dynamic>> doc) =>
-      BranchModel.fromFirestore(doc);
-
-  StylistModel stylistFrom(DocumentSnapshot<Map<String, dynamic>> doc) =>
-      StylistModel.fromFirestore(doc);
-
-  ServiceModel serviceFrom(DocumentSnapshot<Map<String, dynamic>> doc) =>
-      ServiceModel.fromFirestore(doc);
 }
