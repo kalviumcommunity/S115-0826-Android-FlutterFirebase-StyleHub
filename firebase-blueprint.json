@@ -1,0 +1,130 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role-based access for customer, staff, or admin",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 150 },
+        "phone": { "type": "string", "maxLength": 20 },
+        "role": { "type": "string", "enum": ["customer", "staff", "admin"] },
+        "branchId": { "type": "string", "maxLength": 128, "description": "Optional branch ID if user is staff" },
+        "profileImage": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "Branch": {
+      "title": "Branch",
+      "description": "Physical salon outlet within the StyleHub network",
+      "type": "object",
+      "properties": {
+        "branchId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 120 },
+        "address": { "type": "string", "maxLength": 250 },
+        "city": { "type": "string", "maxLength": 100 },
+        "phone": { "type": "string", "maxLength": 25 },
+        "openingHours": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 500 },
+        "image": { "type": "string", "maxLength": 500 },
+        "active": { "type": "boolean" },
+        "rating": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["branchId", "name", "address", "phone", "openingHours", "active"]
+    },
+    "Stylist": {
+      "title": "Stylist",
+      "description": "Hair and salon stylist assigned to branches",
+      "type": "object",
+      "properties": {
+        "stylistId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "profileImage": { "type": "string", "maxLength": 500 },
+        "branchId": { "type": "string", "maxLength": 128 },
+        "bio": { "type": "string", "maxLength": 500 },
+        "experience": { "type": "string", "maxLength": 50 },
+        "specialization": { "type": "string", "maxLength": 100 },
+        "services": { "type": "string" },
+        "availability": { "type": "string" },
+        "active": { "type": "boolean" },
+        "rating": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["stylistId", "name", "branchId", "specialization", "active"]
+    },
+    "Service": {
+      "title": "Service",
+      "description": "Salon services available across network branches",
+      "type": "object",
+      "properties": {
+        "serviceId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 120 },
+        "description": { "type": "string", "maxLength": 500 },
+        "category": { "type": "string", "maxLength": 80 },
+        "price": { "type": "number" },
+        "duration": { "type": "number" },
+        "image": { "type": "string", "maxLength": 500 },
+        "branchAvailability": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["serviceId", "name", "category", "price", "duration", "active"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Customer booking linked to a customer global UID, branch, stylist, and service",
+      "type": "object",
+      "properties": {
+        "appointmentId": { "type": "string", "maxLength": 128 },
+        "customerId": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "maxLength": 100 },
+        "customerPhone": { "type": "string", "maxLength": 25 },
+        "customerEmail": { "type": "string", "maxLength": 150 },
+        "branchId": { "type": "string", "maxLength": 128 },
+        "branchName": { "type": "string", "maxLength": 120 },
+        "stylistId": { "type": "string", "maxLength": 128 },
+        "stylistName": { "type": "string", "maxLength": 100 },
+        "serviceId": { "type": "string", "maxLength": 128 },
+        "serviceName": { "type": "string", "maxLength": 120 },
+        "servicePrice": { "type": "number" },
+        "appointmentDate": { "type": "string", "maxLength": 20 },
+        "startTime": { "type": "string", "maxLength": 20 },
+        "endTime": { "type": "string", "maxLength": 20 },
+        "status": { "type": "string", "enum": ["Pending", "Confirmed", "Completed", "Cancelled"] },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["appointmentId", "customerId", "branchId", "stylistId", "serviceId", "appointmentDate", "startTime", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Profiles for registered customers, staff, and network admins"
+    },
+    "/branches/{branchId}": {
+      "schema": "Branch",
+      "description": "Salons in the network"
+    },
+    "/stylists/{stylistId}": {
+      "schema": "Stylist",
+      "description": "Stylists with branch assignments and skills"
+    },
+    "/services/{serviceId}": {
+      "schema": "Service",
+      "description": "Network services catalog"
+    },
+    "/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "Centralized bookings supporting cross-branch history and repeat analysis"
+    }
+  }
+}

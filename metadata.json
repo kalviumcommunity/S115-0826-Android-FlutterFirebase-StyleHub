@@ -1,0 +1,8 @@
+{
+  "name": "Remix StyleHub - Centralized Salon Network",
+  "description": "Multi-branch salon network platform featuring centralized customer identity, cross-branch service history, appointment booking, staff management, and repeat customer analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
