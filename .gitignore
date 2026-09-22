@@ -1,8 +1,36 @@
-node_modules/
-build/
-dist/
-coverage/
-.DS_Store
+# Miscellaneous
+*.class
 *.log
-.env*
-!.env.example
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+.metadata
+
+# IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Flutter/Dart/Pub
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+flutter_*.png
+
+# Node
+node_modules/
+dist/
+.env
+
+# Android/iOS
+**/android/local.properties
+**/ios/.symlinks/
+**/ios/Pods/
