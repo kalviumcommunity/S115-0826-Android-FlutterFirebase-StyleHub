@@ -15,10 +15,11 @@ class AppConstants {
   static const String branchImagesPath = 'branch_images';
 
   // Appointment Statuses
-  static const String statusPending = 'Pending';
-  static const String statusConfirmed = 'Confirmed';
-  static const String statusCompleted = 'Completed';
-  static const String statusCancelled = 'Cancelled';
+  static const String statusPending = 'pending';
+  static const String statusConfirmed = 'confirmed';
+  static const String statusCompleted = 'completed';
+  static const String statusCancelled = 'cancelled';
+  static const String statusRejected = 'rejected';
 
   // User Roles
   static const String roleCustomer = 'customer';

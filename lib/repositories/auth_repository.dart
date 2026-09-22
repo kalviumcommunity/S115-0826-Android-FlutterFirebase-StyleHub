@@ -56,7 +56,7 @@ class AuthRepository {
         String? assignedBranchId;
         if (email.contains('staff')) {
           assignedRole = 'staff';
-          assignedBranchId = 'branch_1';
+          assignedBranchId = null; // Removed hardcoded 'branch_downtown', Admin must assign
         } else if (email.contains('admin')) {
           assignedRole = 'admin';
         }
@@ -81,7 +81,7 @@ class AuthRepository {
       
       if (email.contains('staff')) {
         assignedRole = 'staff';
-        assignedBranchId = 'branch_1';
+        assignedBranchId = null; // Removed hardcoded 'branch_downtown'
       } else if (email.contains('admin')) {
         assignedRole = 'admin';
       }

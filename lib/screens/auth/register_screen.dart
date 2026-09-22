@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_text_field.dart';
 import '../../providers/auth_provider.dart';
@@ -59,12 +58,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ],
               const SizedBox(height: 32),
               AppButton(
-                text: 'Register',
+                label: 'Register',
                 isLoading: auth.isLoading,
                 onPressed: () async {
                   setState(() => _error = null);
                   try {
-                    await auth.register(
+                    await auth.signUp(
                       name: _nameCtrl.text,
                       email: _emailCtrl.text,
                       phone: _phoneCtrl.text,
@@ -77,7 +76,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 16),
               TextButton(
-                onPressed: () => context.go('/login'),
+                onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
                 child: const Text("Already have an account? Log in"),
               ),
             ],

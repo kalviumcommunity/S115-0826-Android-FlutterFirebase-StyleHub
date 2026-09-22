@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/branch_model.dart';
 import '../models/service_model.dart';
 import '../models/stylist_model.dart';
 import '../models/appointment_model.dart';
 import '../models/appointment_slot_model.dart';
+import '../core/constants/app_constants.dart';
 
 class FirestoreRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -93,7 +95,7 @@ class FirestoreRepository {
       appointmentDate: appointmentDate,
       startTime: startTime,
       endTime: endTime,
-      status: 'Confirmed',
+      status: AppConstants.statusPending,
       notes: notes,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
@@ -110,23 +112,53 @@ class FirestoreRepository {
       createdAt: DateTime.now().toIso8601String(),
     );
 
-    await _db.runTransaction((transaction) async {
-      final slotRef = _db.collection('appointmentSlots').doc(slotId);
-      final aptRef = _db.collection('appointments').doc(appointmentId);
+    debugPrint('\n==================================================');
+    debugPrint('BOOKING FIRESTORE WRITE START');
+    debugPrint('STARTING FIRESTORE TRANSACTION');
+    debugPrint('appointmentId = $appointmentId');
+    debugPrint('slotId = $slotId');
+    
+    try {
+      await _db.runTransaction((transaction) async {
+        final slotRef = _db.collection('appointmentSlots').doc(slotId);
+        final aptRef = _db.collection('appointments').doc(appointmentId);
 
-      final slotSnapshot = await transaction.get(slotRef);
-      if (slotSnapshot.exists) {
-        throw Exception('The selected slot $startTime is already booked. Please choose another time.');
+        final slotSnapshot = await transaction.get(slotRef);
+        if (slotSnapshot.exists) {
+          throw Exception('The selected slot $startTime is already booked. Please choose another time.');
+        }
+
+        transaction.set(slotRef, slot.toMap());
+        transaction.set(aptRef, appointment.toMap());
+      });
+      debugPrint('BOOKING FIRESTORE WRITE SUCCESS');
+      debugPrint('appointmentId = $appointmentId');
+      debugPrint('status = Pending');
+      debugPrint('branchId = $branchId');
+      
+      // Verify immediately
+      final verifyApt = await _db.collection('appointments').doc(appointmentId).get();
+      debugPrint('document exists = ${verifyApt.exists}');
+      if (verifyApt.exists) {
+        debugPrint('status = ${verifyApt.data()?['status']}');
+        debugPrint('branchId = ${verifyApt.data()?['branchId']}');
       }
-
-      transaction.set(slotRef, slot.toMap());
-      transaction.set(aptRef, appointment.toMap());
-    });
+    } catch (e) {
+      debugPrint('BOOKING FIRESTORE FAILED');
+      if (e is FirebaseException) {
+        debugPrint('code = ${e.code}');
+        debugPrint('message = ${e.message}');
+      } else {
+        debugPrint('exception = $e');
+      }
+      rethrow; // Don't silently catch, let the UI handle it
+    }
+    debugPrint('==================================================\n');
 
     return appointment;
   }
 
-  Future<void> cancelAppointment(AppointmentModel appointment, {String reason = 'Cancelled by user'}) async {
+  Future<void> cancelAppointment(AppointmentModel appointment, {String reason = 'Cancelled by user', String status = AppConstants.statusCancelled}) async {
     final slotId = 'slot_${appointment.branchId}_${appointment.stylistId}_${appointment.appointmentDate}_${appointment.startTime.replaceAll(RegExp(r'\\s+'), '')}';
 
     await _db.runTransaction((transaction) async {
@@ -139,8 +171,8 @@ class FirestoreRepository {
       }
 
       transaction.update(aptRef, {
-        'status': 'Cancelled',
-        'notes': 'Cancelled: $reason',
+        'status': status,
+        'notes': '${status[0].toUpperCase()}${status.substring(1)}: $reason',
         'updatedAt': DateTime.now().toIso8601String(),
       });
 
@@ -191,6 +223,8 @@ class FirestoreRepository {
   }
 
   Future<void> updateAppointmentStatus(String appointmentId, String status, {String? notes}) async {
+    debugPrint('\n==================================================');
+    debugPrint('APPROVE UPDATE START');
     final data = <String, dynamic>{
       'status': status,
       'updatedAt': DateTime.now().toIso8601String(),
@@ -198,7 +232,26 @@ class FirestoreRepository {
     if (notes != null) {
       data['notes'] = notes;
     }
-    await _db.collection('appointments').doc(appointmentId).update(data);
+
+    try {
+      await _db.collection('appointments').doc(appointmentId).update(data);
+      debugPrint('APPROVE UPDATE SUCCESS');
+      debugPrint('appointmentId = $appointmentId');
+      debugPrint('newStatus = $status');
+
+      final verifyApt = await _db.collection('appointments').doc(appointmentId).get();
+      debugPrint('Verification read status = ${verifyApt.data()?['status']}');
+    } catch (e) {
+      debugPrint('APPROVE UPDATE FAILED');
+      if (e is FirebaseException) {
+        debugPrint('code = ${e.code}');
+        debugPrint('message = ${e.message}');
+      } else {
+        debugPrint('exception = $e');
+      }
+      rethrow;
+    }
+    debugPrint('==================================================\n');
   }
 
   Future<void> seedDatabaseIfEmpty() async {

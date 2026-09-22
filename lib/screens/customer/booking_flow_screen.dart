@@ -64,13 +64,29 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     final authProv = context.read<AuthProvider>();
     final bookingProv = context.read<BookingProvider>();
 
-    if (authProv.currentUser == null) return;
+    debugPrint('\n==================================================');
+    debugPrint('PART 4 — DEBUG CUSTOMER BOOKING BUTTON');
+    debugPrint('BOOKING BUTTON PRESSED');
+    
+    if (authProv.currentUser == null) {
+      debugPrint('Validation Failed: User is null');
+      return;
+    }
 
     bookingProv.selectDateTime(
       '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}',
       _selectedTimeSlot,
     );
     bookingProv.setNotes(_notesController.text.trim());
+
+    debugPrint('selected branchId: ${bookingProv.draft.branchId}');
+    debugPrint('selected stylistId: ${bookingProv.draft.stylistId}');
+    debugPrint('selected serviceId: ${bookingProv.draft.serviceId}');
+    debugPrint('selected date: ${bookingProv.draft.appointmentDate}');
+    debugPrint('selected time: ${bookingProv.draft.startTime}');
+    debugPrint('customer UID: ${authProv.currentUser!.uid}');
+    debugPrint('BOOKING VALIDATION PASSED');
+    debugPrint('==================================================\n');
 
     final apt = await bookingProv.confirmBooking(authProv.currentUser!);
     if (apt != null && mounted) {
@@ -79,6 +95,15 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         SnackBar(
           content: Text('Appointment confirmed at ${apt.branchName}!'),
           backgroundColor: AppColors.statusCompleted,
+        ),
+      );
+    } else if (bookingProv.errorMessage != null && mounted) {
+      // ENSURE FIREBASE EXCEPTION REACHES UI
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Booking Failed: ${bookingProv.errorMessage}'),
+          backgroundColor: AppColors.statusCancelled,
+          duration: const Duration(seconds: 5),
         ),
       );
     }

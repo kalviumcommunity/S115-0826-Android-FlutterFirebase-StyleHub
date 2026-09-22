@@ -120,6 +120,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
             icon: const Icon(Icons.swap_horiz),
             tooltip: 'Return to Customer View',
             onPressed: () {
+              context.read<BookingProvider>().clearAllListeners();
               authProv.switchRole(AppConstants.roleCustomer);
               Navigator.of(context).pushReplacementNamed(AppRoutes.customerMain);
             },
@@ -127,6 +128,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
+              context.read<BookingProvider>().clearAllListeners();
               await authProv.signOut();
               if (context.mounted) {
                 Navigator.of(context).pushReplacementNamed(AppRoutes.login);

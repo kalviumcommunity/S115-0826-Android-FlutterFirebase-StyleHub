@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../repositories/auth_repository.dart';
+import '../repositories/firestore_repository.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthRepository _authRepository;
@@ -25,6 +26,9 @@ class AuthProvider extends ChangeNotifier {
       if (user != null) {
         try {
           _currentUser = await _authRepository.getProfile(user.uid);
+          try {
+            await FirestoreRepository().seedDatabaseIfEmpty();
+          } catch (_) {} // ignore seeding errors
           notifyListeners();
         } catch (_) {}
       } else {
@@ -39,6 +43,9 @@ class AuthProvider extends ChangeNotifier {
     _clearError();
     try {
       _currentUser = await _authRepository.login(email: email, password: password);
+      try {
+        await FirestoreRepository().seedDatabaseIfEmpty();
+      } catch (_) {} // ignore seeding errors
       _setLoading(false);
       return true;
     } catch (e) {
@@ -67,6 +74,9 @@ class AuthProvider extends ChangeNotifier {
         role: role,
         branchId: branchId,
       );
+      try {
+        await FirestoreRepository().seedDatabaseIfEmpty();
+      } catch (_) {} // ignore seeding errors
       _setLoading(false);
       return true;
     } catch (e) {

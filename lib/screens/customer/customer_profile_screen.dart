@@ -7,6 +7,7 @@ import '../../core/widgets/app_button.dart';
 import '../../core/widgets/confirmation_dialog.dart';
 import '../../providers/auth_provider.dart';
 import '../../routes/app_routes.dart';
+import '../../providers/booking_provider.dart';
 
 class CustomerProfileScreen extends StatelessWidget {
   const CustomerProfileScreen({super.key});
@@ -116,6 +117,7 @@ class CustomerProfileScreen extends StatelessWidget {
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () {
+                            context.read<BookingProvider>().clearAllListeners();
                             authProv.switchRole(AppConstants.roleStaff);
                             Navigator.of(context).pushReplacementNamed(AppRoutes.staffDashboard);
                           },
@@ -126,6 +128,7 @@ class CustomerProfileScreen extends StatelessWidget {
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () {
+                            context.read<BookingProvider>().clearAllListeners();
                             authProv.switchRole(AppConstants.roleAdmin);
                             Navigator.of(context).pushReplacementNamed(AppRoutes.adminDashboard);
                           },
@@ -151,6 +154,7 @@ class CustomerProfileScreen extends StatelessWidget {
                   confirmLabel: 'Sign Out',
                 );
                 if (confirm == true) {
+                  context.read<BookingProvider>().clearAllListeners();
                   await authProv.signOut();
                   if (context.mounted) {
                     Navigator.of(context).pushReplacementNamed(AppRoutes.login);

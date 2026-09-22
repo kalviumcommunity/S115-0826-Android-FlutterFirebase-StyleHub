@@ -44,13 +44,9 @@ class FirestoreService {
 
   Future<void> createUserProfile(UserModel user) async {
     try {
-      await _usersCol
-          .doc(user.uid)
-          .set(user.toMap())
-          .timeout(const Duration(seconds: 2));
+      await _usersCol.doc(user.uid).set(user.toMap());
     } catch (e) {
-      // Ignore timeout or unavailable errors to allow local success
-      return;
+      throw FirestoreException('Failed to create user profile: $e');
     }
   }
 
@@ -207,14 +203,11 @@ class FirestoreService {
 
   Future<void> createAppointment(AppointmentModel appointment) async {
     try {
-      // Use timeout to prevent UI hanging. The write will still remain in the offline cache.
       await _appointmentsCol
           .doc(appointment.appointmentId)
-          .set(appointment.toMap())
-          .timeout(const Duration(seconds: 2));
+          .set(appointment.toMap());
     } catch (e) {
-      // Ignore timeout or unavailable errors so the booking succeeds locally.
-      return;
+      throw FirestoreException('Failed to create appointment: $e');
     }
   }
 

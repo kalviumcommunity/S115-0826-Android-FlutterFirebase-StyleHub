@@ -22,27 +22,58 @@ import 'services/firestore_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase with the provisioned Firebase configuration
+  // Initialize Firebase with the provisioned Firebase configuration FIRST
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    // Automatically seed the database if it's empty
-    await FirestoreRepository().seedDatabaseIfEmpty();
+
+    debugPrint('\n==================================================');
+    debugPrint('PART 1 — VERIFY THE ACTUAL FIREBASE PROJECT AT RUNTIME');
+    debugPrint('projectId: ${Firebase.app().options.projectId}');
+    debugPrint('appId: ${Firebase.app().options.appId}');
+    debugPrint('apiKey: ${Firebase.app().options.apiKey}');
+    debugPrint('messagingSenderId: ${Firebase.app().options.messagingSenderId}');
+    debugPrint('==================================================\n');
+
   } catch (e) {
-    debugPrint('Firebase initialization note: $e');
+    debugPrint('Firebase initialization failed: $e');
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Text(
+              'Failed to initialize app: $e',
+              style: const TextStyle(color: Colors.red),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    );
+    return; // Stop execution
   }
 
-  // Instantiate singleton services
+  // Instantiate singleton services NOW that Firebase is ready
   final authService = AuthService();
   final firestoreService = FirestoreService();
+  final firestoreRepository = FirestoreRepository();
+
+  // Automatically seed the database if it's empty
+  try {
+    await firestoreRepository.seedDatabaseIfEmpty();
+  } catch (e) {
+    debugPrint('Database seeding note: $e');
+  }
 
   // Instantiate repositories
   final authRepository = AuthRepository(
     authService: authService,
     firestoreService: firestoreService,
   );
-  final bookingRepository = BookingRepository(firestoreService: firestoreService);
+  final bookingRepository = BookingRepository(
+    firestoreRepository: firestoreRepository,
+  );
   final branchRepository = BranchRepository(firestoreService: firestoreService);
   final stylistRepository = StylistRepository(firestoreService: firestoreService);
   final serviceRepository = ServiceRepository(firestoreService: firestoreService);
