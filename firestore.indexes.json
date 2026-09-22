@@ -1,1 +1,29 @@
-{\r\n  \"indexes\": [\r\n    {\r\n      \"collectionGroup\": \"appointments\",\r\n      \"queryScope\": \"COLLECTION\",\r\n      \"fields\": [\r\n        { \"fieldPath\": \"customerId\", \"order\": \"ASCENDING\" },\r\n        { \"fieldPath\": \"scheduledAt\", \"order\": \"DESCENDING\" }\r\n      ]\r\n    },\r\n    {\r\n      \"collectionGroup\": \"appointments\",\r\n      \"queryScope\": \"COLLECTION\",\r\n      \"fields\": [\r\n        { \"fieldPath\": \"branchId\", \"order\": \"ASCENDING\" },\r\n        { \"fieldPath\": \"scheduledAt\", \"order\": \"ASCENDING\" }\r\n      ]\r\n    },\r\n    {\r\n      \"collectionGroup\": \"serviceHistory\",\r\n      \"queryScope\": \"COLLECTION\",\r\n      \"fields\": [\r\n        { \"fieldPath\": \"customerId\", \"order\": \"ASCENDING\" },\r\n        { \"fieldPath\": \"completedAt\", \"order\": \"DESCENDING\" }\r\n      ]\r\n    }\r\n  ],\r\n  \"fieldOverrides\": []\r\n}\r\n
+{
+  "indexes": [
+    {
+      "collectionGroup": "appointments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "customerId", "order": "ASCENDING" },
+        { "fieldPath": "scheduledAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "appointments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "branchId", "order": "ASCENDING" },
+        { "fieldPath": "scheduledAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "serviceHistory",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "customerId", "order": "ASCENDING" },
+        { "fieldPath": "completedAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

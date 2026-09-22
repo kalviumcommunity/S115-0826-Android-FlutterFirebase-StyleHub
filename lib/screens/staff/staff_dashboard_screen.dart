@@ -11,6 +11,9 @@ import '../../providers/auth_provider.dart';
 import '../../providers/booking_provider.dart';
 import '../../providers/branch_provider.dart';
 import '../../routes/app_routes.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 class StaffDashboardScreen extends StatefulWidget {
   const StaffDashboardScreen({super.key});
@@ -27,9 +30,98 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = context.read<AuthProvider>();
-      final branchId = auth.currentUser?.assignedBranchId ?? 'branch_1';
-      context.read<BookingProvider>().listenToBranchAppointments(branchId);
+      final branchId = auth.currentUser?.assignedBranchId;
+      _runDiagnostics(branchId);
+      if (branchId != null && branchId.isNotEmpty) {
+        context.read<BookingProvider>().listenToBranchAppointments(branchId);
+      }
     });
+  }
+
+  Future<void> _runDiagnostics(String? assignedBranchId) async {
+    debugPrint('\n==================================================');
+    debugPrint('PART 3 — VERIFY AUTH TOKEN / USER');
+    final user = FirebaseAuth.instance.currentUser;
+    debugPrint('uid: ${user?.uid}');
+    debugPrint('email: ${user?.email}');
+    debugPrint('emailVerified: ${user?.emailVerified}');
+    
+    try {
+      await user?.getIdToken(true);
+      debugPrint('Force-refresh ID token: SUCCESS');
+    } catch (e) {
+      debugPrint('Force-refresh ID token: FAILED - $e');
+    }
+
+    debugPrint('\n==================================================');
+    debugPrint('PART 7 — VERIFY STAFF USER DOCUMENT');
+    if (user != null) {
+      try {
+        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        debugPrint('Staff Doc exists: ${userDoc.exists}');
+        debugPrint('role: ${userDoc.data()?['role']}');
+        debugPrint('assignedBranchId: ${userDoc.data()?['assignedBranchId']}');
+        debugPrint('name: ${userDoc.data()?['name']}');
+        debugPrint('email: ${userDoc.data()?['email']}');
+      } catch (e) {
+        debugPrint('Error reading staff user doc: $e');
+      }
+    }
+
+    debugPrint('\n==================================================');
+    debugPrint('PART 6 — DEBUG STAFF QUERY');
+    debugPrint('STAFF QUERY START');
+    debugPrint('uid = ${user?.uid}');
+    debugPrint('assignedBranchId = $assignedBranchId');
+    debugPrint('EXACT QUERY: appointments where branchId == $assignedBranchId');
+
+    debugPrint('\n==================================================');
+    debugPrint('PART 2 — DIRECT FIRESTORE READ TEST');
+    debugPrint('DIRECT FIRESTORE TEST START');
+    debugPrint('projectId: ${Firebase.app().options.projectId}');
+    
+    try {
+      final aptQuery = await FirebaseFirestore.instance.collection('appointments').limit(1).get();
+      debugPrint('collection: appointments');
+      debugPrint('result document count: ${aptQuery.docs.length}');
+      if (aptQuery.docs.isNotEmpty) {
+        debugPrint('First doc ID: ${aptQuery.docs.first.id}');
+        debugPrint('First doc branchId: ${aptQuery.docs.first.data()['branchId']}');
+      }
+    } catch (e) {
+      debugPrint('collection: appointments -> FAILED');
+      if (e is FirebaseException) {
+        debugPrint('exception code: ${e.code}');
+        debugPrint('exception message: ${e.message}');
+      } else {
+        debugPrint('exception: $e');
+      }
+    }
+
+    try {
+      final slotQuery = await FirebaseFirestore.instance.collection('appointmentSlots').limit(1).get();
+      debugPrint('\ncollection: appointmentSlots');
+      debugPrint('result document count: ${slotQuery.docs.length}');
+    } catch (e) {
+      debugPrint('collection: appointmentSlots -> FAILED');
+      if (e is FirebaseException) {
+        debugPrint('exception code: ${e.code}');
+        debugPrint('exception message: ${e.message}');
+      } else {
+        debugPrint('exception: $e');
+      }
+    }
+    debugPrint('==================================================\n');
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final auth = context.watch<AuthProvider>();
+    final newBranchId = auth.currentUser?.assignedBranchId;
+    if (newBranchId != null) {
+      context.read<BookingProvider>().listenToBranchAppointments(newBranchId);
+    }
   }
 
   void _showStatusUpdateDialog(AppointmentModel apt) {
@@ -56,34 +148,54 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                 AppConstants.statusPending,
                 AppConstants.statusConfirmed,
                 AppConstants.statusCompleted,
+                AppConstants.statusRejected,
                 AppConstants.statusCancelled,
               ].map((status) {
+                final displayStatus = status[0].toUpperCase() + status.substring(1);
                 return ListTile(
                   leading: Icon(
                     status == AppConstants.statusCompleted
                         ? Icons.check_circle_outline
                         : status == AppConstants.statusConfirmed
                             ? Icons.thumb_up_outlined
-                            : status == AppConstants.statusCancelled
+                            : status == AppConstants.statusCancelled || status == AppConstants.statusRejected
                                 ? Icons.cancel_outlined
                                 : Icons.schedule,
                     color: status == AppConstants.statusCompleted
                         ? AppColors.statusCompleted
                         : status == AppConstants.statusConfirmed
                             ? AppColors.statusConfirmed
-                            : status == AppConstants.statusCancelled
+                            : status == AppConstants.statusCancelled || status == AppConstants.statusRejected
                                 ? AppColors.statusCancelled
                                 : AppColors.statusPending,
                   ),
-                  title: Text(status, style: AppTypography.titleMedium.copyWith(fontSize: 15)),
+                  title: Text(displayStatus, style: AppTypography.titleMedium.copyWith(fontSize: 15)),
                   trailing: apt.status == status ? const Icon(Icons.check, color: AppColors.primary) : null,
                   onTap: () async {
                     Navigator.of(ctx).pop();
-                    await context.read<BookingProvider>().updateStatus(apt.appointmentId, status);
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Updated to $status')),
-                      );
+                    
+                    debugPrint('\n==================================================');
+                    debugPrint('APPROVE PRESSED');
+                    debugPrint('appointmentId = ${apt.appointmentId}');
+                    debugPrint('currentStatus = ${apt.status}');
+                    
+                    try {
+                      await context.read<BookingProvider>().updateStatus(apt.appointmentId, status);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Updated to $displayStatus')),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Failed to update: $e'),
+                            backgroundColor: AppColors.statusCancelled,
+                            duration: const Duration(seconds: 5),
+                          ),
+                        );
+                      }
                     }
                   },
                 );
@@ -152,18 +264,46 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     final branchProv = context.watch<BranchProvider>();
 
     final user = authProv.currentUser;
-    final branchId = user?.assignedBranchId ?? 'branch_downtown';
+    final branchId = user?.assignedBranchId;
+
+    if (branchId == null || branchId.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Staff Console')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: AppColors.statusCancelled),
+              const SizedBox(height: 16),
+              const Text('No Branch Assigned', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              const Text('Please contact an Admin to assign you to a branch.'),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () async {
+                  context.read<BookingProvider>().clearAllListeners();
+                  await authProv.signOut();
+                  if (context.mounted) {
+                    Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+                  }
+                },
+                child: const Text('Logout'),
+              )
+            ],
+          ),
+        ),
+      );
+    }
+
     final branch = branchProv.branches.firstWhere(
       (b) => b.branchId == branchId,
-      orElse: () => branchProv.branches.isNotEmpty
-          ? branchProv.branches.first
-          : BranchModel(
-              branchId: 'branch_downtown',
-              name: 'Downtown Flagship',
-              address: '100 Main St',
-              city: 'New York',
-              phone: '555-0100',
-              openingHours: '9am - 8pm',
+      orElse: () => BranchModel(
+              branchId: branchId,
+              name: 'Unknown Branch',
+              address: '',
+              city: '',
+              phone: '',
+              openingHours: '',
               description: '',
               image: '',
             ),
@@ -171,7 +311,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
 
     var appointments = bookingProv.branchAppointments;
     if (_selectedStatusFilter != 'All') {
-      appointments = appointments.where((a) => a.status == _selectedStatusFilter).toList();
+      appointments = appointments.where((a) => a.status == _selectedStatusFilter.toLowerCase()).toList();
     }
 
     return Scaffold(
@@ -188,16 +328,9 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.swap_horiz),
-            tooltip: 'Return to Customer View',
-            onPressed: () {
-              authProv.switchRole(AppConstants.roleCustomer);
-              Navigator.of(context).pushReplacementNamed(AppRoutes.customerMain);
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
+              context.read<BookingProvider>().clearAllListeners();
               await authProv.signOut();
               if (context.mounted) {
                 Navigator.of(context).pushReplacementNamed(AppRoutes.login);
@@ -215,7 +348,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: ['All', 'Pending', 'Confirmed', 'Completed', 'Cancelled'].map((st) {
+                children: ['All', 'Pending', 'Confirmed', 'Completed', 'Rejected', 'Cancelled'].map((st) {
                   final isSel = _selectedStatusFilter == st;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
@@ -237,6 +370,17 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
           ),
           const Divider(height: 1),
 
+          if (bookingProv.errorMessage != null)
+            Container(
+              padding: const EdgeInsets.all(8),
+              color: AppColors.statusCancelledBg,
+              width: double.infinity,
+              child: Text(
+                'Sync Error: ${bookingProv.errorMessage}',
+                style: const TextStyle(color: AppColors.statusCancelled),
+                textAlign: TextAlign.center,
+              ),
+            ),
           Expanded(
             child: appointments.isEmpty
                 ? const EmptyStateWidget(
@@ -264,25 +408,25 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                                     style: AppTypography.titleMedium,
                                   ),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                     decoration: BoxDecoration(
-                                      color: apt.status == 'Confirmed'
+                                      color: apt.isConfirmed
                                           ? AppColors.statusConfirmedBg
-                                          : apt.status == 'Completed'
+                                          : apt.isCompleted
                                               ? AppColors.statusCompletedBg
-                                              : apt.status == 'Cancelled'
+                                              : apt.isCancelled
                                                   ? AppColors.statusCancelledBg
                                                   : AppColors.statusPendingBg,
-                                      borderRadius: BorderRadius.circular(6),
+                                      borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Text(
-                                      apt.status,
-                                      style: AppTypography.labelSmall.copyWith(
-                                        color: apt.status == 'Confirmed'
+                                      apt.status[0].toUpperCase() + apt.status.substring(1),
+                                      style: TextStyle(
+                                        color: apt.isConfirmed
                                             ? AppColors.statusConfirmed
-                                            : apt.status == 'Completed'
+                                            : apt.isCompleted
                                                 ? AppColors.statusCompleted
-                                                : apt.status == 'Cancelled'
+                                                : apt.isCancelled
                                                     ? AppColors.statusCancelled
                                                     : AppColors.statusPending,
                                       ),

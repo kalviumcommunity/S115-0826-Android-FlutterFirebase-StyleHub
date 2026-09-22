@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../core/constants/app_constants.dart';
 
 class AppointmentModel {
   final String appointmentId;
@@ -43,10 +44,10 @@ class AppointmentModel {
     required this.updatedAt,
   });
 
-  bool get isPending => status == 'Pending';
-  bool get isConfirmed => status == 'Confirmed';
-  bool get isCompleted => status == 'Completed';
-  bool get isCancelled => status == 'Cancelled';
+  bool get isPending => status.toLowerCase() == AppConstants.statusPending;
+  bool get isConfirmed => status.toLowerCase() == AppConstants.statusConfirmed;
+  bool get isCompleted => status.toLowerCase() == AppConstants.statusCompleted;
+  bool get isCancelled => status.toLowerCase() == AppConstants.statusCancelled || status.toLowerCase() == AppConstants.statusRejected;
 
   factory AppointmentModel.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
@@ -66,7 +67,7 @@ class AppointmentModel {
       appointmentDate: data['appointmentDate'] ?? '',
       startTime: data['startTime'] ?? '',
       endTime: data['endTime'] ?? '',
-      status: data['status'] ?? 'Pending',
+      status: data['status']?.toString().toLowerCase() ?? AppConstants.statusPending,
       notes: data['notes'],
       createdAt: data['createdAt'] != null
           ? (data['createdAt'] is Timestamp

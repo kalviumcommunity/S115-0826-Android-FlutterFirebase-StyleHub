@@ -17,28 +17,26 @@ class BookingCard extends StatelessWidget {
   });
 
   Color _getStatusBg() {
-    switch (appointment.status) {
-      case 'Confirmed':
-        return AppColors.statusConfirmedBg;
-      case 'Completed':
-        return AppColors.statusCompletedBg;
-      case 'Cancelled':
-        return AppColors.statusCancelledBg;
-      default:
-        return AppColors.statusPendingBg;
+    if (appointment.isConfirmed) {
+      return AppColors.statusConfirmedBg;
+    } else if (appointment.isCompleted) {
+      return AppColors.statusCompletedBg;
+    } else if (appointment.isCancelled) {
+      return AppColors.statusCancelledBg;
+    } else {
+      return AppColors.statusPendingBg;
     }
   }
 
   Color _getStatusFg() {
-    switch (appointment.status) {
-      case 'Confirmed':
-        return AppColors.statusConfirmed;
-      case 'Completed':
-        return AppColors.statusCompleted;
-      case 'Cancelled':
-        return AppColors.statusCancelled;
-      default:
-        return AppColors.statusPending;
+    if (appointment.isConfirmed) {
+      return AppColors.statusConfirmed;
+    } else if (appointment.isCompleted) {
+      return AppColors.statusCompleted;
+    } else if (appointment.isCancelled) {
+      return AppColors.statusCancelled;
+    } else {
+      return AppColors.statusPending;
     }
   }
 
@@ -78,7 +76,7 @@ class BookingCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  appointment.status,
+                  appointment.status[0].toUpperCase() + appointment.status.substring(1),
                   style: AppTypography.labelSmall.copyWith(
                     color: _getStatusFg(),
                     fontWeight: FontWeight.bold,

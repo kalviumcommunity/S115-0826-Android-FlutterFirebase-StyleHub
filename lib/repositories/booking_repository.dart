@@ -4,24 +4,27 @@ import '../core/exceptions/app_exceptions.dart';
 import '../models/appointment_model.dart';
 import '../models/booking_model.dart';
 import '../models/user_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firestore_service.dart';
+import 'firestore_repository.dart';
 
 class BookingRepository {
-  final FirestoreService _firestoreService;
+  final FirestoreRepository _firestoreRepository;
 
-  BookingRepository({FirestoreService? firestoreService})
-      : _firestoreService = firestoreService ?? FirestoreService();
+  BookingRepository({
+    FirestoreRepository? firestoreRepository,
+  })  : _firestoreRepository = firestoreRepository ?? FirestoreRepository();
 
   Stream<List<AppointmentModel>> streamCustomerHistory(String customerUid) {
-    return _firestoreService.streamCustomerAppointments(customerUid);
+    return _firestoreRepository.getCustomerAppointments(customerUid);
   }
 
   Stream<List<AppointmentModel>> streamBranchAppointments(String branchId) {
-    return _firestoreService.streamBranchAppointments(branchId);
+    return _firestoreRepository.getBranchAppointments(branchId);
   }
 
   Stream<List<AppointmentModel>> streamAllAppointments() {
-    return _firestoreService.streamAllAppointments();
+    return _firestoreRepository.getAllAppointments();
   }
 
   Future<AppointmentModel> confirmBooking({
@@ -36,7 +39,7 @@ class BookingRepository {
 
     final appointmentId = 'apt_${const Uuid().v4().substring(0, 8)}';
     
-    final appointment = AppointmentModel(
+    return _firestoreRepository.bookAppointment(
       appointmentId: appointmentId,
       customerId: customer.uid,
       customerName: customer.name,
@@ -52,18 +55,20 @@ class BookingRepository {
       appointmentDate: draft.appointmentDate!,
       startTime: draft.startTime!,
       endTime: _calculateEndTime(draft.startTime!, draft.serviceDuration ?? 45),
-      status: AppConstants.statusPending,
-      notes: draft.notes,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      notes: draft.notes ?? '',
     );
-
-    await _firestoreService.createAppointment(appointment);
-    return appointment;
   }
 
-  Future<void> updateStatus(String appointmentId, String newStatus) {
-    return _firestoreService.updateAppointmentStatus(appointmentId, newStatus);
+  Future<void> updateStatus(String appointmentId, String newStatus) async {
+    final statusLower = newStatus.toLowerCase();
+    if (statusLower == AppConstants.statusCancelled || statusLower == AppConstants.statusRejected) {
+      final doc = await FirebaseFirestore.instance.collection('appointments').doc(appointmentId).get();
+      if (doc.exists) {
+        final apt = AppointmentModel.fromFirestore(doc);
+        return _firestoreRepository.cancelAppointment(apt, status: statusLower);
+      }
+    }
+    return _firestoreRepository.updateAppointmentStatus(appointmentId, statusLower);
   }
 
   String _calculateEndTime(String startTime, int durationMinutes) {

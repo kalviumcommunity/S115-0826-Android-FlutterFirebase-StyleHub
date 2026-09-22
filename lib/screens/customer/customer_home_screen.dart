@@ -65,7 +65,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     final userName = auth.currentUser?.name ?? 'Guest';
     final uid = auth.currentUser?.uid ?? 'GUEST';
     
-    final upcoming = bookingProv.customerAppointments.where((a) => a.status == 'Confirmed' || a.status == 'Pending').toList();
+    final upcoming = bookingProv.customerAppointments.where((a) => a.status == 'confirmed' || a.status == 'pending').toList();
     final nextAppointment = upcoming.isNotEmpty ? upcoming.first : null;
 
     final filteredBranches = branchProv.branches.where((b) => b.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
@@ -260,7 +260,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                                 color: Colors.blue.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Text(nextAppointment.status, style: const TextStyle(color: Colors.blue, fontSize: 10, fontWeight: FontWeight.bold)),
+                              child: Text(nextAppointment.status.toUpperCase(), style: const TextStyle(color: Colors.blue, fontSize: 10, fontWeight: FontWeight.bold)),
                             ),
                           ],
                         ),
@@ -531,7 +531,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
   Widget _buildHistory(BuildContext context) {
     final bookingProv = Provider.of<BookingProvider>(context);
-    final history = bookingProv.customerAppointments.where((a) => a.status != 'Confirmed' && a.status != 'Pending').toList();
+    final history = bookingProv.customerAppointments.where((a) => a.status != 'confirmed' && a.status != 'pending').toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
@@ -556,7 +556,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               itemCount: history.length,
               itemBuilder: (context, index) {
                 final apt = history[index];
-                final isCancelled = apt.status == 'Cancelled';
+                final isCancelled = apt.status == 'cancelled' || apt.status == 'rejected';
                 return AppCard(
                   margin: const EdgeInsets.only(bottom: 12),
                   borderColor: isCancelled ? Colors.red.withOpacity(0.3) : Colors.green.withOpacity(0.3),
@@ -568,7 +568,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     ),
                     title: Text(apt.serviceName, style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text('${apt.appointmentDate} • ${apt.branchName}'),
-                    trailing: Text(apt.status, style: TextStyle(color: isCancelled ? Colors.red : Colors.green, fontWeight: FontWeight.w600)),
+                    trailing: Text(apt.status.toUpperCase(), style: TextStyle(color: isCancelled ? Colors.red : Colors.green, fontWeight: FontWeight.w600)),
                   ),
                 );
               },

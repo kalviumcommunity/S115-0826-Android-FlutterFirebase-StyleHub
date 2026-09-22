@@ -1,0 +1,49 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if the user is signed in
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Users Collection
+    match /users/{userId} {
+      // Any authenticated user can read profiles (needed for staff to see customers, etc.)
+      allow read: if isAuthenticated();
+      // Users can only create or update their own profiles
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Branches Collection
+    match /branches/{branchId} {
+      // Any authenticated user can read/write branches for the demo setup
+      allow read, write: if isAuthenticated();
+    }
+
+    // Stylists Collection
+    match /stylists/{stylistId} {
+      // Any authenticated user can read/write stylists
+      allow read, write: if isAuthenticated();
+    }
+
+    // Services Collection
+    match /services/{serviceId} {
+      // Any authenticated user can read/write services
+      allow read, write: if isAuthenticated();
+    }
+
+    // Appointments Collection
+    match /appointments/{appointmentId} {
+      // Any authenticated user can read/write appointments
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Appointment Slots (Used for transaction/atomic locks)
+    match /appointmentSlots/{slotId} {
+      // Any authenticated user can read/write slots
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
