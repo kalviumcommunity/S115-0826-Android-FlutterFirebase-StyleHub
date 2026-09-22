@@ -1,0 +1,114 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == "manishambagal@gmail.com" ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isStaff() {
+      return isSignedIn() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff')
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow get: if isSignedIn() && (isOwner(userId) || isStaff() || isAdmin());
+      allow list: if isSignedIn() && (isAdmin() || isStaff());
+      allow create: if isSignedIn() && isValidId(userId) && (
+        isOwner(userId) && (incoming().role == 'customer' || isAdmin())
+      );
+      allow update: if isSignedIn() && isValidId(userId) && (
+        isAdmin() || 
+        (isOwner(userId) && !incoming().diff(existing()).affectedKeys().hasAny(['role', 'uid']))
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Branches Collection
+    match /branches/{branchId} {
+      allow read: if true; // Public catalog for discovery and booking
+      allow create, update, delete: if isAdmin() && isValidId(branchId);
+    }
+
+    // Stylists Collection
+    match /stylists/{stylistId} {
+      allow read: if true; // Public catalog for discovery and booking
+      allow create, delete: if isAdmin() && isValidId(stylistId);
+      allow update: if isValidId(stylistId) && (
+        isAdmin() || 
+        (isStaff() && incoming().diff(existing()).affectedKeys().hasOnly(['bio', 'availability', 'rating']))
+      );
+    }
+
+    // Services Collection
+    match /services/{serviceId} {
+      allow read: if true; // Public catalog for booking
+      allow create, update, delete: if isAdmin() && isValidId(serviceId);
+    }
+
+    // Appointments Collection
+    // Global customer ID enables cross-branch bookings while ensuring strict data ownership
+    match /appointments/{appointmentId} {
+      allow get: if isSignedIn() && isValidId(appointmentId) && (
+        resource.data.customerId == request.auth.uid || isStaff() || isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        // Customer queries only their appointments, or staff/admin
+        resource.data.customerId == request.auth.uid || isStaff() || isAdmin()
+      );
+      allow create: if isSignedIn() && isValidId(appointmentId) && (
+        // Customer can only create booking for themselves
+        incoming().customerId == request.auth.uid &&
+        incoming().status == 'Pending' || incoming().status == 'Confirmed' || isAdmin()
+      );
+      allow update: if isSignedIn() && isValidId(appointmentId) && (
+        isAdmin() ||
+        // Customer can cancel their own pending/confirmed appointment
+        (resource.data.customerId == request.auth.uid && 
+         existing().status != 'Completed' && existing().status != 'Cancelled' &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) &&
+         incoming().status == 'Cancelled') ||
+        // Staff can update status (Confirm, Complete, Cancel)
+        (isStaff() &&
+         existing().status != 'Completed' &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'notes', 'updatedAt', 'startTime', 'endTime']))
+      );
+      allow delete: if isAdmin();
+    }
+  }
+}
