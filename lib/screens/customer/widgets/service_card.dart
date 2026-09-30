@@ -56,7 +56,7 @@ class ServiceCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '\$${service.price.toStringAsFixed(0)}',
+                      '₹${service.price.toStringAsFixed(0)}',
                       style: AppTypography.titleLarge.copyWith(
                         color: AppColors.primary,
                         fontSize: 16,

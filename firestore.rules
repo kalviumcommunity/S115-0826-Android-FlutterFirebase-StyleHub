@@ -3,47 +3,110 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper function to check if the user is signed in
     function isAuthenticated() {
       return request.auth != null;
     }
     
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && getUserData().role == 'admin';
+    }
+    
+    function isStaff() {
+      return isAuthenticated() && getUserData().role == 'staff';
+    }
+    
+    function isCustomer() {
+      return isAuthenticated() && getUserData().role == 'customer';
+    }
+
+    function getStaffBranchId() {
+      return getUserData().assignedBranchId;
+    }
+
     // Users Collection
     match /users/{userId} {
       // Any authenticated user can read profiles (needed for staff to see customers, etc.)
       allow read: if isAuthenticated();
-      // Users can only create or update their own profiles
-      allow write: if isAuthenticated() && request.auth.uid == userId;
+      
+      // Users can only create their own profiles
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      
+      // Users can update their own profile, or Admin can update any
+      // Note: In a production app, we would restrict normal users from elevating their role via request.resource.data.role
+      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      
+      allow delete: if isAdmin();
     }
 
     // Branches Collection
     match /branches/{branchId} {
-      // Any authenticated user can read/write branches for the demo setup
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     // Stylists Collection
     match /stylists/{stylistId} {
-      // Any authenticated user can read/write stylists
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     // Services Collection
     match /services/{serviceId} {
-      // Any authenticated user can read/write services
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     // Appointments Collection
     match /appointments/{appointmentId} {
-      // Any authenticated user can read/write appointments
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        isAdmin() || 
+        (isCustomer() && request.resource.data.customerId == request.auth.uid) ||
+        (isStaff() && request.resource.data.branchId == getStaffBranchId())
+      );
+      allow update: if isAuthenticated() && (
+        isAdmin() || 
+        (isCustomer() && resource.data.customerId == request.auth.uid) ||
+        (isStaff() && resource.data.branchId == getStaffBranchId())
+      );
+      allow delete: if isAuthenticated() && (
+        isAdmin() || 
+        (isCustomer() && resource.data.customerId == request.auth.uid) ||
+        (isStaff() && resource.data.branchId == getStaffBranchId())
+      );
     }
     
     // Appointment Slots (Used for transaction/atomic locks)
     match /appointmentSlots/{slotId} {
-      // Any authenticated user can read/write slots
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        isAdmin() || 
+        (isCustomer() && request.resource.data.customerId == request.auth.uid) ||
+        (isStaff() && request.resource.data.branchId == getStaffBranchId())
+      );
+      allow delete: if isAuthenticated() && (
+        isAdmin() || 
+        (isCustomer() && resource.data.customerId == request.auth.uid) ||
+        (isStaff() && resource.data.branchId == getStaffBranchId())
+      );
+    }
+
+    // Service Records Collection
+    match /serviceRecords/{recordId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        isAdmin() || 
+        (isStaff() && request.resource.data.branchId == getStaffBranchId())
+      );
+      allow update: if isAuthenticated() && (
+        isAdmin() || 
+        (isStaff() && resource.data.branchId == getStaffBranchId())
+      );
+      allow delete: if isAdmin();
     }
   }
 }

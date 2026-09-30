@@ -20,6 +20,14 @@ class CustomerProfileScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Profile'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () {
+              Navigator.of(context).pushNamed(AppRoutes.customerEditProfile);
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -85,6 +93,12 @@ class CustomerProfileScreen extends StatelessWidget {
                   ),
                   const Divider(),
                   ListTile(
+                    leading: const Icon(Icons.person_outline, color: AppColors.textSecondary),
+                    title: const Text('Gender'),
+                    subtitle: Text(user?.gender ?? 'Prefer not to say'),
+                  ),
+                  const Divider(),
+                  ListTile(
                     leading: const Icon(Icons.storefront_outlined, color: AppColors.textSecondary),
                     title: const Text('Preferred Network'),
                     subtitle: const Text('StyleHub Multi-Branch Central'),
@@ -94,53 +108,7 @@ class CustomerProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Demo Role Switcher
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Switch Role (Demo Mode)', style: AppTypography.titleMedium.copyWith(fontSize: 14)),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Quickly test the application flow as a Staff member or HQ Admin.',
-                    style: AppTypography.bodyMedium.copyWith(fontSize: 12),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            context.read<BookingProvider>().clearAllListeners();
-                            authProv.switchRole(AppConstants.roleStaff);
-                            Navigator.of(context).pushReplacementNamed(AppRoutes.staffDashboard);
-                          },
-                          child: const Text('Staff View'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            context.read<BookingProvider>().clearAllListeners();
-                            authProv.switchRole(AppConstants.roleAdmin);
-                            Navigator.of(context).pushReplacementNamed(AppRoutes.adminDashboard);
-                          },
-                          child: const Text('Admin HQ'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
+
 
             AppButton(
               label: 'Sign Out',

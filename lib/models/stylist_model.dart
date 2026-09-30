@@ -11,7 +11,7 @@ class StylistModel {
   final String specialization;
   final List<String> services;
   final List<String> availability;
-  final bool active;
+  final bool isActive;
   final double rating;
   final int totalReviews;
 
@@ -26,7 +26,7 @@ class StylistModel {
     required this.specialization,
     this.services = const [],
     this.availability = const [],
-    this.active = true,
+    this.isActive = true,
     this.rating = 4.9,
     this.totalReviews = 0,
   });
@@ -44,7 +44,7 @@ class StylistModel {
       specialization: data['specialization'] ?? '',
       services: (data['services'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       availability: (data['availability'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
-      active: data['active'] ?? true,
+      isActive: data['isActive'] ?? true,
       rating: (data['rating'] is num) ? (data['rating'] as num).toDouble() : 4.9,
       totalReviews: (data['totalReviews'] is num) ? (data['totalReviews'] as num).toInt() : 0,
     );
@@ -62,7 +62,7 @@ class StylistModel {
       'specialization': specialization,
       'services': services,
       'availability': availability,
-      'active': active,
+      'isActive': isActive,
       'rating': rating,
       'totalReviews': totalReviews,
       'updatedAt': FieldValue.serverTimestamp(),

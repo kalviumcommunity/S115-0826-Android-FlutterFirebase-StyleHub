@@ -26,6 +26,10 @@ class BranchProvider extends ChangeNotifier {
     ).toList();
   }
 
+  List<BranchModel> get activeBranches {
+    return branches.where((b) => b.isActive).toList();
+  }
+
   BranchModel? get selectedBranch => _selectedBranch;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -48,9 +52,6 @@ class BranchProvider extends ChangeNotifier {
       (data) {
         _branches = data;
         _isLoading = false;
-        if (_selectedBranch == null && _branches.isNotEmpty) {
-          _selectedBranch = _branches.first;
-        }
         notifyListeners();
       },
       onError: (err) {

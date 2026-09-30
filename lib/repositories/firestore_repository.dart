@@ -159,6 +159,24 @@ class FirestoreRepository {
   }
 
   Future<void> cancelAppointment(AppointmentModel appointment, {String reason = 'Cancelled by user', String status = AppConstants.statusCancelled}) async {
+    // 2-hour cancellation rule
+    try {
+      final aptDate = appointment.appointmentDate; // e.g. "2024-10-31"
+      final aptTime = appointment.startTime; // e.g. "14:30"
+      final aptDateTimeStr = '${aptDate}T${aptTime}:00';
+      final aptDateTime = DateTime.parse(aptDateTimeStr);
+      final now = DateTime.now();
+      
+      if (aptDateTime.isAfter(now) && aptDateTime.difference(now).inHours < 2) {
+        throw Exception('Appointments cannot be cancelled less than 2 hours before the scheduled time.');
+      }
+    } catch (e) {
+      if (e.toString().contains('cancelled less than 2 hours')) {
+        rethrow;
+      }
+      // If parsing fails, proceed but ideally shouldn't happen.
+    }
+
     final slotId = 'slot_${appointment.branchId}_${appointment.stylistId}_${appointment.appointmentDate}_${appointment.startTime.replaceAll(RegExp(r'\\s+'), '')}';
 
     await _db.runTransaction((transaction) async {
@@ -272,7 +290,7 @@ class FirestoreRepository {
         openingHours: '09:00 AM - 08:00 PM',
         description: 'Premium salon in the heart of the city.',
         image: 'https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?w=800&q=80',
-        active: true,
+        isActive: true,
       ),
       BranchModel(
         branchId: branchIds[1],
@@ -283,7 +301,7 @@ class FirestoreRepository {
         openingHours: '09:00 AM - 08:00 PM',
         description: 'Classic grooming and styling.',
         image: 'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=800&q=80',
-        active: true,
+        isActive: true,
       ),
       BranchModel(
         branchId: branchIds[2],
@@ -294,7 +312,7 @@ class FirestoreRepository {
         openingHours: '09:00 AM - 08:00 PM',
         description: 'Relaxing spa treatments and hair care.',
         image: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=800&q=80',
-        active: true,
+        isActive: true,
       ),
     ];
 
@@ -305,12 +323,12 @@ class FirestoreRepository {
     // 2. Seed Services
     final serviceIds = ['srv_1', 'srv_2', 'srv_3', 'srv_4', 'srv_5', 'srv_6'];
     final services = [
-      ServiceModel(serviceId: serviceIds[0], name: 'Signature Haircut', description: 'Premium haircut with hot towel.', price: 45.0, duration: 45, image: '', category: 'Hair', active: true),
-      ServiceModel(serviceId: serviceIds[1], name: 'Executive Shave', description: 'Classic straight razor shave.', price: 35.0, duration: 30, image: '', category: 'Beard', active: true),
-      ServiceModel(serviceId: serviceIds[2], name: 'Hair Coloring', description: 'Full or partial premium color.', price: 120.0, duration: 120, image: '', category: 'Color', active: true),
-      ServiceModel(serviceId: serviceIds[3], name: 'Rejuvenating Facial', description: 'Deep cleansing and hydration.', price: 65.0, duration: 60, image: '', category: 'Skin', active: true),
-      ServiceModel(serviceId: serviceIds[4], name: 'Beard Sculpting', description: 'Precision trim and line up.', price: 25.0, duration: 30, image: '', category: 'Beard', active: true),
-      ServiceModel(serviceId: serviceIds[5], name: 'Scalp Massage', description: 'Relaxing 20-min massage.', price: 30.0, duration: 20, image: '', category: 'Relax', active: true),
+      ServiceModel(serviceId: serviceIds[0], name: 'Signature Haircut', description: 'Premium haircut with hot towel.', price: 45.0, duration: 45, image: '', category: 'Hair', isActive: true),
+      ServiceModel(serviceId: serviceIds[1], name: 'Executive Shave', description: 'Classic straight razor shave.', price: 35.0, duration: 30, image: '', category: 'Beard', isActive: true),
+      ServiceModel(serviceId: serviceIds[2], name: 'Hair Coloring', description: 'Full or partial premium color.', price: 120.0, duration: 120, image: '', category: 'Color', isActive: true),
+      ServiceModel(serviceId: serviceIds[3], name: 'Rejuvenating Facial', description: 'Deep cleansing and hydration.', price: 65.0, duration: 60, image: '', category: 'Skin', isActive: true),
+      ServiceModel(serviceId: serviceIds[4], name: 'Beard Sculpting', description: 'Precision trim and line up.', price: 25.0, duration: 30, image: '', category: 'Beard', isActive: true),
+      ServiceModel(serviceId: serviceIds[5], name: 'Scalp Massage', description: 'Relaxing 20-min massage.', price: 30.0, duration: 20, image: '', category: 'Relax', isActive: true),
     ];
 
     for (var srv in services) {
@@ -328,7 +346,7 @@ class FirestoreRepository {
         experience: '5+ years',
         rating: 4.9,
         profileImage: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=800&q=80',
-        active: true,
+        isActive: true,
       ),
       StylistModel(
         stylistId: 'sty_2',
@@ -339,7 +357,7 @@ class FirestoreRepository {
         experience: '3+ years',
         rating: 4.8,
         profileImage: 'https://images.unsplash.com/photo-1605497788044-5a32c7078486?w=800&q=80',
-        active: true,
+        isActive: true,
       ),
       StylistModel(
         stylistId: 'sty_3',
@@ -350,7 +368,7 @@ class FirestoreRepository {
         experience: '7+ years',
         rating: 4.7,
         profileImage: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&q=80',
-        active: true,
+        isActive: true,
       ),
       StylistModel(
         stylistId: 'sty_4',
@@ -361,7 +379,7 @@ class FirestoreRepository {
         experience: '4+ years',
         rating: 4.9,
         profileImage: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=800&q=80',
-        active: true,
+        isActive: true,
       ),
       StylistModel(
         stylistId: 'sty_5',
@@ -372,7 +390,7 @@ class FirestoreRepository {
         experience: '10+ years',
         rating: 4.6,
         profileImage: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800&q=80',
-        active: true,
+        isActive: true,
       ),
     ];
 

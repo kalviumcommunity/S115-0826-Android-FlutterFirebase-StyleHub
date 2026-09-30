@@ -9,7 +9,7 @@ class BranchModel {
   final String openingHours;
   final String description;
   final String image;
-  final bool active;
+  final bool isActive;
   final double rating;
   final int totalReviews;
   final DateTime? createdAt;
@@ -23,7 +23,7 @@ class BranchModel {
     required this.openingHours,
     required this.description,
     required this.image,
-    this.active = true,
+    this.isActive = true,
     this.rating = 4.8,
     this.totalReviews = 0,
     this.createdAt,
@@ -40,7 +40,7 @@ class BranchModel {
       openingHours: data['openingHours'] ?? '',
       description: data['description'] ?? '',
       image: data['image'] ?? '',
-      active: data['active'] ?? true,
+      isActive: data['isActive'] ?? true,
       rating: (data['rating'] is num) ? (data['rating'] as num).toDouble() : 4.8,
       totalReviews: (data['totalReviews'] is num) ? (data['totalReviews'] as num).toInt() : 0,
       createdAt: data['createdAt'] != null
@@ -61,7 +61,7 @@ class BranchModel {
       'openingHours': openingHours,
       'description': description,
       'image': image,
-      'active': active,
+      'isActive': isActive,
       'rating': rating,
       'totalReviews': totalReviews,
       if (createdAt != null) 'createdAt': Timestamp.fromDate(createdAt!),

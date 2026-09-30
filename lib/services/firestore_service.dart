@@ -42,6 +42,13 @@ class FirestoreService {
     });
   }
 
+  Stream<List<UserModel>> streamUsersByRole(String role) {
+    return _usersCol
+        .where('role', isEqualTo: role)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => UserModel.fromFirestore(d)).toList());
+  }
+
   Future<void> createUserProfile(UserModel user) async {
     try {
       await _usersCol.doc(user.uid).set(user.toMap());

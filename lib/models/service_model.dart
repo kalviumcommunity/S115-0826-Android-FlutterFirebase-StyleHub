@@ -9,7 +9,7 @@ class ServiceModel {
   final int duration; // in minutes
   final String image;
   final List<String> branchAvailability;
-  final bool active;
+  final bool isActive;
 
   const ServiceModel({
     required this.serviceId,
@@ -20,7 +20,7 @@ class ServiceModel {
     required this.duration,
     required this.image,
     this.branchAvailability = const ['all'],
-    this.active = true,
+    this.isActive = true,
   });
 
   factory ServiceModel.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -34,7 +34,7 @@ class ServiceModel {
       duration: (data['duration'] is num) ? (data['duration'] as num).toInt() : 45,
       image: data['image'] ?? '',
       branchAvailability: (data['branchAvailability'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? ['all'],
-      active: data['active'] ?? true,
+      isActive: data['isActive'] ?? true,
     );
   }
 
@@ -48,7 +48,7 @@ class ServiceModel {
       'duration': duration,
       'image': image,
       'branchAvailability': branchAvailability,
-      'active': active,
+      'isActive': isActive,
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
