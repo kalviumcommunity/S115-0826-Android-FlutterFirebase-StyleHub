@@ -68,8 +68,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     final upcoming = bookingProv.customerAppointments.where((a) => a.status == 'confirmed' || a.status == 'pending').toList();
     final nextAppointment = upcoming.isNotEmpty ? upcoming.first : null;
 
-    final filteredBranches = branchProv.branches.where((b) => b.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
-    final filteredServices = serviceProv.services.where((s) {
+    final filteredBranches = branchProv.activeBranches.where((b) => b.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+    final filteredServices = serviceProv.activeServices.where((s) {
       final matchesQuery = s.name.toLowerCase().contains(_searchQuery.toLowerCase());
       final matchesCat = _selectedCategory == 'All' || s.category.toLowerCase().contains(_selectedCategory.toLowerCase());
       return matchesQuery && matchesCat;
@@ -375,7 +375,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         // Branches Grid
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          sliver: branchProv.branches.isEmpty
+          sliver: branchProv.activeBranches.isEmpty
             ? SliverToBoxAdapter(
                 child: Row(
                   children: [
@@ -453,7 +453,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         // Services Grid
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          sliver: serviceProv.services.isEmpty
+          sliver: serviceProv.activeServices.isEmpty
             ? SliverToBoxAdapter(
                 child: Row(
                   children: [
@@ -497,7 +497,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         // Stylists Grid
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          sliver: stylistProv.stylists.isEmpty
+          sliver: stylistProv.activeStylists.isEmpty
             ? SliverToBoxAdapter(
                 child: Row(
                   children: [
@@ -516,10 +516,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 ),
                 delegate: SliverChildBuilderDelegate(
                   (context, index) => StylistCard(
-                    stylist: stylistProv.stylists[index],
+                    stylist: stylistProv.activeStylists[index],
                     onSelect: () => Navigator.pushNamed(context, AppRoutes.bookingFlow),
                   ),
-                  childCount: stylistProv.stylists.length > 4 ? 4 : stylistProv.stylists.length,
+                  childCount: stylistProv.activeStylists.length > 4 ? 4 : stylistProv.activeStylists.length,
                 ),
               ),
         ),

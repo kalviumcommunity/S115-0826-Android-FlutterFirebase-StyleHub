@@ -226,7 +226,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
             const SizedBox(height: 6),
             Text('Select an outlet in the centralized network', style: AppTypography.bodyMedium),
             const SizedBox(height: 16),
-            ...branchProv.branches.map((b) => Padding(
+            ...branchProv.activeBranches.map((b) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: BranchCard(
                 branch: b,
@@ -249,7 +249,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
             const SizedBox(height: 6),
             Text('Available at ${bookingProv.draft.branchName}', style: AppTypography.bodyMedium),
             const SizedBox(height: 16),
-            ...serviceProv.services.map((s) => Padding(
+            ...serviceProv.activeServices.map((s) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: ServiceCard(
                 service: s,
@@ -271,7 +271,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
             const SizedBox(height: 6),
             Text('Stylists stationed at ${bookingProv.draft.branchName}', style: AppTypography.bodyMedium),
             const SizedBox(height: 16),
-            ...stylistProv.stylists.map((st) => Padding(
+            ...stylistProv.activeStylists.map((st) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: StylistCard(
                 stylist: st,

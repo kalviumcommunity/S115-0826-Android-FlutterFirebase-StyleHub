@@ -9,6 +9,7 @@ import 'providers/booking_provider.dart';
 import 'providers/branch_provider.dart';
 import 'providers/service_provider.dart';
 import 'providers/stylist_provider.dart';
+import 'providers/admin_provider.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/booking_repository.dart';
 import 'repositories/branch_repository.dart';
@@ -95,6 +96,9 @@ void main() async {
         ),
         ChangeNotifierProvider<BookingProvider>(
           create: (_) => BookingProvider(bookingRepository: bookingRepository),
+        ),
+        ChangeNotifierProvider<AdminProvider>(
+          create: (_) => AdminProvider(),
         ),
       ],
       child: const StyleHubApp(),

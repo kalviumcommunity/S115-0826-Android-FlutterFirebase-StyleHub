@@ -34,3 +34,5 @@ dist/
 **/android/local.properties
 **/ios/.symlinks/
 **/ios/Pods/
+# Widget Preview related
+.widget_preview/

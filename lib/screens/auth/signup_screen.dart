@@ -23,6 +23,9 @@ class _SignupScreenState extends State<SignupScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _acceptTerms = false;
+  String _selectedGender = 'Prefer not to say';
+  final List<String> _genders = ['Male', 'Female', 'Other', 'Prefer not to say'];
 
   @override
   void dispose() {
@@ -36,6 +39,12 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Future<void> _handleSignup() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_acceptTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please accept the Terms & Conditions')),
+      );
+      return;
+    }
 
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.signUp(
@@ -44,6 +53,7 @@ class _SignupScreenState extends State<SignupScreen> {
       password: _passwordController.text,
       phone: _phoneController.text,
       role: AppConstants.roleCustomer,
+      gender: _selectedGender,
     );
 
     if (success && mounted) {
@@ -120,10 +130,39 @@ class _SignupScreenState extends State<SignupScreen> {
                 AppTextField(
                   controller: _phoneController,
                   label: 'Phone Number',
-                  hint: '+1 (555) 234-5678',
+                  hint: '+91 9876543210',
                   prefixIcon: Icons.phone_outlined,
                   keyboardType: TextInputType.phone,
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Phone number is required' : null,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Phone number is required';
+                    if (!v.trim().startsWith('+91')) return 'Phone number must start with +91';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                DropdownButtonFormField<String>(
+                  value: _selectedGender,
+                  decoration: InputDecoration(
+                    labelText: 'Gender',
+                    prefixIcon: const Icon(Icons.person_outline),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  items: _genders.map((String gender) {
+                    return DropdownMenuItem<String>(
+                      value: gender,
+                      child: Text(gender),
+                    );
+                  }).toList(),
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      setState(() {
+                        _selectedGender = newValue;
+                      });
+                    }
+                  },
                 ),
                 const SizedBox(height: 16),
 
@@ -151,6 +190,19 @@ class _SignupScreenState extends State<SignupScreen> {
                     if (v != _passwordController.text) return 'Passwords do not match';
                     return null;
                   },
+                ),
+                const SizedBox(height: 16),
+
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _acceptTerms,
+                      onChanged: (val) => setState(() => _acceptTerms = val ?? false),
+                    ),
+                    const Expanded(
+                      child: Text('I accept the Terms and Conditions and Privacy Policy'),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 24),
 

@@ -9,8 +9,11 @@ class UserModel {
   final String? branchId;
   final String? assignedBranchId;
   final String? profileImage;
+  final String gender;
+  final bool mustChangePassword;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool isActive;
 
   const UserModel({
     required this.uid,
@@ -21,8 +24,11 @@ class UserModel {
     this.branchId,
     this.assignedBranchId,
     this.profileImage,
+    this.gender = 'Prefer not to say',
+    this.mustChangePassword = false,
     required this.createdAt,
     required this.updatedAt,
+    this.isActive = true,
   });
 
   bool get isCustomer => role == 'customer';
@@ -40,6 +46,8 @@ class UserModel {
       branchId: data['branchId'],
       assignedBranchId: data['assignedBranchId'] ?? data['branchId'],
       profileImage: data['profileImage'],
+      gender: data['gender'] ?? 'Prefer not to say',
+      mustChangePassword: data['mustChangePassword'] ?? false,
       createdAt: data['createdAt'] != null
           ? (data['createdAt'] is Timestamp
               ? (data['createdAt'] as Timestamp).toDate()
@@ -50,6 +58,7 @@ class UserModel {
               ? (data['updatedAt'] as Timestamp).toDate()
               : DateTime.tryParse(data['updatedAt'].toString()) ?? DateTime.now())
           : DateTime.now(),
+      isActive: data['isActive'] ?? data['active'] ?? true,
     );
   }
 
@@ -63,6 +72,8 @@ class UserModel {
       branchId: data['branchId'],
       assignedBranchId: data['assignedBranchId'] ?? data['branchId'],
       profileImage: data['profileImage'],
+      gender: data['gender'] ?? 'Prefer not to say',
+      mustChangePassword: data['mustChangePassword'] ?? false,
       createdAt: data['createdAt'] != null
           ? (data['createdAt'] is Timestamp
               ? (data['createdAt'] as Timestamp).toDate()
@@ -73,6 +84,7 @@ class UserModel {
               ? (data['updatedAt'] as Timestamp).toDate()
               : DateTime.tryParse(data['updatedAt'].toString()) ?? DateTime.now())
           : DateTime.now(),
+      isActive: data['isActive'] ?? data['active'] ?? true,
     );
   }
 
@@ -86,8 +98,11 @@ class UserModel {
       if (branchId != null) 'branchId': branchId,
       if (assignedBranchId != null) 'assignedBranchId': assignedBranchId,
       if (profileImage != null) 'profileImage': profileImage,
+      'gender': gender,
+      'mustChangePassword': mustChangePassword,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
+      'isActive': isActive,
     };
   }
 
@@ -98,6 +113,8 @@ class UserModel {
     String? branchId,
     String? assignedBranchId,
     String? profileImage,
+    String? gender,
+    bool? mustChangePassword,
     DateTime? updatedAt,
   }) {
     return UserModel(
@@ -109,8 +126,11 @@ class UserModel {
       branchId: branchId ?? this.branchId,
       assignedBranchId: assignedBranchId ?? this.assignedBranchId,
       profileImage: profileImage ?? this.profileImage,
+      gender: gender ?? this.gender,
+      mustChangePassword: mustChangePassword ?? this.mustChangePassword,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
+      isActive: this.isActive, // Or add bool? isActive to arguments if needed, but not required right now
     );
   }
 }

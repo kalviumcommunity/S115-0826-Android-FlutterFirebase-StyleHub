@@ -62,6 +62,7 @@ class AuthProvider extends ChangeNotifier {
     required String phone,
     String role = 'customer',
     String? branchId,
+    String gender = 'Prefer not to say',
   }) async {
     _setLoading(true);
     _clearError();
@@ -73,6 +74,7 @@ class AuthProvider extends ChangeNotifier {
         phone: phone,
         role: role,
         branchId: branchId,
+        gender: gender,
       );
       try {
         await FirestoreRepository().seedDatabaseIfEmpty();
@@ -90,6 +92,7 @@ class AuthProvider extends ChangeNotifier {
     String? name,
     String? phone,
     String? profileImage,
+    String? gender,
   }) async {
     if (_currentUser == null) return;
     _setLoading(true);
@@ -98,25 +101,19 @@ class AuthProvider extends ChangeNotifier {
         if (name != null) 'name': name,
         if (phone != null) 'phone': phone,
         if (profileImage != null) 'profileImage': profileImage,
+        if (gender != null) 'gender': gender,
       };
       await _authRepository.updateProfile(_currentUser!.uid, updates);
       _currentUser = _currentUser!.copyWith(
         name: name,
         phone: phone,
         profileImage: profileImage,
+        gender: gender,
       );
       _setLoading(false);
     } catch (e) {
       _errorMessage = e.toString();
       _setLoading(false);
-    }
-  }
-
-  // Demo role switch helper for seamless multi-branch verification
-  void switchRole(String newRole) {
-    if (_currentUser != null) {
-      _currentUser = _currentUser!.copyWith(role: newRole);
-      notifyListeners();
     }
   }
 

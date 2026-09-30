@@ -27,6 +27,10 @@ class ServiceProvider extends ChangeNotifier {
     }).toList();
   }
 
+  List<ServiceModel> get activeServices {
+    return services.where((s) => s.isActive).toList();
+  }
+
   List<String> get categories => [
     'All',
     'Hair',

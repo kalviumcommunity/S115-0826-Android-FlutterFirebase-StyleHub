@@ -17,8 +17,8 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController(text: 'customer@stylehub.com');
-  final _passwordController = TextEditingController(text: 'password123');
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
   @override
@@ -47,17 +47,6 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.of(context).pushReplacementNamed(AppRoutes.customerMain);
       }
     }
-  }
-
-  void _fillQuickRole(String email, String role) {
-    _emailController.text = email;
-    _passwordController.text = 'password123';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Filled demo credentials for $role account'),
-        duration: const Duration(seconds: 1),
-      ),
-    );
   }
 
   @override
@@ -202,46 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Quick Demo Accounts Fill Bar
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Quick Demo Switch',
-                          style: AppTypography.titleMedium.copyWith(fontSize: 12),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            ActionChip(
-                              label: const Text('Customer'),
-                              avatar: const Icon(Icons.person, size: 14),
-                              onPressed: () => _fillQuickRole('customer@stylehub.com', 'Customer'),
-                            ),
-                            ActionChip(
-                              label: const Text('Staff (Downtown)'),
-                              avatar: const Icon(Icons.badge, size: 14),
-                              onPressed: () => _fillQuickRole('staff@stylehub.com', 'Staff'),
-                            ),
-                            ActionChip(
-                              label: const Text('Admin HQ'),
-                              avatar: const Icon(Icons.shield, size: 14),
-                              onPressed: () => _fillQuickRole('admin@stylehub.com', 'Admin'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+
                 ],
               ),
             ),

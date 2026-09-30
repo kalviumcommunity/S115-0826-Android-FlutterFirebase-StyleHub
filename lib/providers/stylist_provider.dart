@@ -17,6 +17,11 @@ class StylistProvider extends ChangeNotifier {
   }
 
   List<StylistModel> get stylists => _stylists;
+  
+  List<StylistModel> get activeStylists {
+    return _stylists.where((s) => s.isActive).toList();
+  }
+
   StylistModel? get selectedStylist => _selectedStylist;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
